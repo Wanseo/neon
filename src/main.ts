@@ -1,4 +1,6 @@
 import './style.css'
+import { createNeonRenderer, createSegmenter } from './neon-renderer'
+import type { SelfieSegmentation } from '@mediapipe/selfie_segmentation'
 
 const root = document.querySelector<HTMLDivElement>('#app')!
 root.innerHTML = `
@@ -21,10 +23,6 @@ root.innerHTML = `
 
 const canvas = document.querySelector('canvas')!
 const context = canvas.getContext('2d')!
-const buffer = document.createElement('canvas')
-const source = buffer.getContext('2d', { willReadFrequently: true })!
-const paint = document.createElement('canvas')
-const paintContext = paint.getContext('2d')!
 const video = document.createElement('video')
 video.muted = true
 video.autoplay = true
@@ -35,6 +33,7 @@ const glow = document.querySelector<HTMLInputElement>('#glow')!
 const shadow = document.querySelector<HTMLInputElement>('#shadow')!
 let stream: MediaStream | null = null
 let frame = 0
+let segmenter: SelfieSegmentation | null = null
 let pending = false
 let generation = 0
 for (const input of [glow, shadow]) input.addEventListener('input', () => {
@@ -46,6 +45,9 @@ function stopCamera() {
   cancelAnimationFrame(frame)
   stream?.getTracks().forEach(track => track.stop())
   stream = null
+  const oldSegmenter = segmenter
+  segmenter = null
+  if (oldSegmenter) void oldSegmenter.close().catch(() => {})
   video.srcObject = null
   context.clearRect(0, 0, canvas.width, canvas.height)
   document.querySelector('#intro')!.classList.remove('hidden')
@@ -56,53 +58,18 @@ function stopCamera() {
   message.textContent = '카메라가 꺼졌습니다. 다시 켜서 빛을 담아보세요.'
 }
 
-function render() {
-  if (!stream || !video.videoWidth) return
-  const width = 480
-  const height = Math.round(width * video.videoHeight / video.videoWidth)
-  if (buffer.width !== width || buffer.height !== height) {
-    buffer.width = paint.width = canvas.width = width
-    buffer.height = paint.height = canvas.height = height
+const paintNeon = createNeonRenderer(canvas, glow, shadow)
+
+async function render(current: number) {
+  if (!stream || !segmenter || current !== generation) return
+  try {
+    await segmenter.send({ image: video })
+    if (current === generation && stream) frame = requestAnimationFrame(() => { void render(current) })
+  } catch {
+    if (current !== generation) return
+    stopCamera()
+    message.textContent = '네온 효과를 실행하지 못했습니다. 최신 Chrome 또는 Safari에서 다시 시도해주세요.'
   }
-  source.save()
-  source.translate(width, 0)
-  source.scale(-1, 1)
-  source.drawImage(video, 0, 0, width, height)
-  source.restore()
-  const pixels = source.getImageData(0, 0, width, height)
-  const data = pixels.data
-  const luminance = new Float32Array(width * height)
-  for (let i = 0; i < luminance.length; i++) {
-    const j = i * 4
-    luminance[i] = (data[j]! * .2126 + data[j + 1]! * .7152 + data[j + 2]! * .0722) / 255
-  }
-  const depth = Number(shadow.value) / 100
-  const bloom = Number(glow.value) / 100
-  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
-    const i = y * width + x
-    const light = luminance[i]!
-    const edge = Math.min(1, (Math.abs(light - luminance[y * width + Math.min(width - 1, x + 2)]!) + Math.abs(light - luminance[Math.min(height - 1, y + 2) * width + x]!)) * 3)
-    const tone = Math.min(1, Math.max(0, (light - .08) / .77))
-    const dark = Math.pow(1 - tone, 1.05 + depth * .7)
-    const rim = edge * (.3 + bloom * .6)
-    const j = i * 4
-    data[j] = Math.min(255, 252 - dark * (135 + depth * 55) + rim * 120)
-    data[j + 1] = Math.min(255, 254 - dark * (56 + depth * 75) + rim * 100)
-    data[j + 2] = Math.min(255, 245 - dark * (210 + depth * 25) + rim * 165)
-    data[j + 3] = 255
-  }
-  paintContext.putImageData(pixels, 0, 0)
-  context.filter = 'none'
-  context.globalCompositeOperation = 'source-over'
-  context.drawImage(paint, 0, 0)
-  context.globalCompositeOperation = 'screen'
-  context.globalAlpha = .12 + bloom * .4
-  context.filter = `blur(${4 + bloom * 15}px)`
-  context.drawImage(paint, 0, 0)
-  context.filter = 'none'
-  context.globalAlpha = 1
-  context.globalCompositeOperation = 'source-over'
-  frame = requestAnimationFrame(render)
 }
 
 button.addEventListener('click', async () => {
@@ -123,14 +90,21 @@ button.addEventListener('click', async () => {
     video.srcObject = stream
     await video.play()
     if (current !== generation) return
+    message.textContent = '실루엣 효과를 준비하고 있습니다…'
+    const model = await createSegmenter()
+    if (current !== generation) { await model.close(); return }
+    segmenter = model
+    model.onResults(results => { if (current === generation && stream) paintNeon(results) })
+    await model.initialize()
+    if (current !== generation) return
     stream.getVideoTracks()[0]?.addEventListener('ended', stopCamera, { once: true })
     document.querySelector('#intro')!.classList.add('hidden')
     document.querySelector('#state')!.textContent = 'CAMERA LIVE'
     document.querySelector('#live-label')!.textContent = 'YOU ARE MADE OF LIGHT'
     document.querySelector('#button-label')!.textContent = '카메라 끄기'
     root.classList.add('is-live')
-    message.textContent = '밝은 벽을 배경으로 서면 실루엣과 네온빛이 더 선명해집니다.'
-    render()
+    message.textContent = '얼굴 디테일은 흐리고, 실루엣과 큰 그림자만 빛으로 표현합니다.'
+    void render(current)
   } catch (error) {
     stopCamera()
     const name = error instanceof DOMException ? error.name : ''
