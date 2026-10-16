@@ -1,3 +1,5 @@
+import { createFaceTracker } from './face-light'
+import type { FaceMesh, NormalizedLandmarkList } from '@mediapipe/face_mesh'
 import './style.css'
 import { createNeonRenderer, createSegmenter } from './neon-renderer'
 import type { SelfieSegmentation } from '@mediapipe/selfie_segmentation'
@@ -34,6 +36,8 @@ const shadow = document.querySelector<HTMLInputElement>('#shadow')!
 let stream: MediaStream | null = null
 let frame = 0
 let segmenter: SelfieSegmentation | null = null
+let faceTracker: FaceMesh | null = null
+let face: NormalizedLandmarkList = []
 let pending = false
 let generation = 0
 for (const input of [glow, shadow]) input.addEventListener('input', () => {
@@ -45,6 +49,10 @@ function stopCamera() {
   cancelAnimationFrame(frame)
   stream?.getTracks().forEach(track => track.stop())
   stream = null
+  const oldTracker = faceTracker
+  faceTracker = null
+  face = []
+  if (oldTracker) void oldTracker.close().catch(() => {})
   const oldSegmenter = segmenter
   segmenter = null
   if (oldSegmenter) void oldSegmenter.close().catch(() => {})
@@ -63,6 +71,8 @@ const paintNeon = createNeonRenderer(canvas, glow, shadow)
 async function render(current: number) {
   if (!stream || !segmenter || current !== generation) return
   try {
+    if (faceTracker) await faceTracker.send({ image: video })
+    if (current !== generation || !segmenter) return
     await segmenter.send({ image: video })
     if (current === generation && stream) frame = requestAnimationFrame(() => { void render(current) })
   } catch {
@@ -94,8 +104,16 @@ button.addEventListener('click', async () => {
     const model = await createSegmenter()
     if (current !== generation) { await model.close(); return }
     segmenter = model
-    model.onResults(results => { if (current === generation && stream) paintNeon(results) })
+    model.onResults(results => { if (current === generation && stream) paintNeon(results, face) })
     await model.initialize()
+    if (current !== generation) return
+    const tracker = await createFaceTracker()
+    if (current !== generation) { await tracker.close(); return }
+    faceTracker = tracker
+    tracker.onResults(results => {
+      if (current === generation) face = results.multiFaceLandmarks[0] ?? []
+    })
+    await tracker.initialize()
     if (current !== generation) return
     stream.getVideoTracks()[0]?.addEventListener('ended', stopCamera, { once: true })
     document.querySelector('#intro')!.classList.add('hidden')

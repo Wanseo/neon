@@ -1,3 +1,5 @@
+import type { NormalizedLandmarkList } from '@mediapipe/face_mesh'
+import { drawFaceLight } from './face-light'
 import type { Results, SelfieSegmentation } from '@mediapipe/selfie_segmentation'
 
 type SegmenterConstructor = new (options: { locateFile: (file: string) => string }) => SelfieSegmentation
@@ -27,7 +29,7 @@ export function createNeonRenderer(canvas: HTMLCanvasElement, glow: HTMLInputEle
   const maskContext = mask.getContext('2d', { willReadFrequently: true })!
   const colorContext = color.getContext('2d')!
 
-  return (results: Results) => {
+  return (results: Results, face: NormalizedLandmarkList = []) => {
     const width = 480
     const height = Math.round(width * results.image.height / results.image.width)
     if (canvas.width !== width || canvas.height !== height) {
@@ -85,5 +87,6 @@ export function createNeonRenderer(canvas: HTMLCanvasElement, glow: HTMLInputEle
     context.globalAlpha = .88
     context.drawImage(color, 0, 0)
     context.restore()
+    drawFaceLight(context, face, width, height, bloom)
   }
 }
