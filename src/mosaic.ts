@@ -20,6 +20,7 @@ export async function createSegmenter() {
 
 export function createMosaic(canvases: HTMLCanvasElement[]) {
   const size = 288
+  const maskSize = size * 3
   const textures = canvases.map((_, index) => createPattern(index, size))
   const texturePixels = textures.map(texture => texture.getContext('2d')!.getImageData(0, 0, size, size).data)
   const contexts = canvases.map(canvas => {
@@ -27,14 +28,14 @@ export function createMosaic(canvases: HTMLCanvasElement[]) {
     return canvas.getContext('2d')!
   })
   const mask = document.createElement('canvas')
-  mask.width = mask.height = size
+  mask.width = mask.height = maskSize
   const maskContext = mask.getContext('2d', { willReadFrequently: true })!
   const light = document.createElement('canvas')
   light.width = light.height = size
   const lightContext = light.getContext('2d')!
   const image = lightContext.createImageData(size, size)
-  const distance = new Float32Array(size * size)
-  const strength = new Float32Array(size * size)
+  const distance = new Float32Array(maskSize * maskSize)
+  const strength = new Float32Array(maskSize * maskSize)
   let previous: Float32Array | null = null
 
   function preview() {
@@ -44,26 +45,27 @@ export function createMosaic(canvases: HTMLCanvasElement[]) {
   preview()
 
   function render(results: Results, spread: number) {
-    // Mirror and center-crop once; every tile shares the exact same silhouette.
+    // Mirror and center-crop ONE silhouette across the entire 3×3 composition.
+    // Compute its contour globally so tile boundaries never create artificial rims.
     const source = results.segmentationMask
     const side = Math.min(source.width, source.height)
     maskContext.save()
-    maskContext.clearRect(0, 0, size, size)
-    maskContext.translate(size, 0)
+    maskContext.clearRect(0, 0, maskSize, maskSize)
+    maskContext.translate(maskSize, 0)
     maskContext.scale(-1, 1)
     maskContext.filter = 'blur(1px)'
-    maskContext.drawImage(source, (source.width - side) / 2, (source.height - side) / 2, side, side, 0, 0, size, size)
+    maskContext.drawImage(source, (source.width - side) / 2, (source.height - side) / 2, side, side, 0, 0, maskSize, maskSize)
     maskContext.restore()
-    const pixels = maskContext.getImageData(0, 0, size, size).data
+    const pixels = maskContext.getImageData(0, 0, maskSize, maskSize).data
     // Short temporal smoothing keeps the hair/shoulder contour from sparkling.
-    if (!previous) previous = new Float32Array(size * size)
+    if (!previous) previous = new Float32Array(maskSize * maskSize)
     for (let i = 0; i < previous.length; i++) {
       const value = previous[i]! * .25 + pixels[i * 4]! * .75
       previous[i] = value
       pixels[i * 4] = value
     }
-    inwardDistance(pixels, size, distance)
-    const reach = 8 + spread * 43
+    inwardDistance(pixels, maskSize, distance)
+    const reach = 16 + spread * 90
     for (let i = 0; i < strength.length; i++) {
       const occupancy = Math.max(0, Math.min(1, (pixels[i * 4]! - 65) / 145))
       const d = distance[i]!
@@ -72,10 +74,13 @@ export function createMosaic(canvases: HTMLCanvasElement[]) {
     }
     contexts.forEach((context, tile) => {
       const texture = texturePixels[tile]!
-      for (let i = 0; i < strength.length; i++) {
-        const j = i * 4
-        const energy = strength[i]!
-        const rim = Math.exp(-distance[i]! / 3) * energy
+      const offsetX = (tile % 3) * size
+      const offsetY = Math.floor(tile / 3) * size
+      for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+        const j = (y * size + x) * 4
+        const globalIndex = (offsetY + y) * maskSize + offsetX + x
+        const energy = strength[globalIndex]!
+        const rim = Math.exp(-distance[globalIndex]! / 6) * energy
         for (let channel = 0; channel < 3; channel++) {
           image.data[j + channel] = Math.min(255, texture[j + channel]! * (1 + rim * .38) + rim * 45)
         }

@@ -12,7 +12,7 @@ app.innerHTML = `
       <button id="camera" type="button" aria-pressed="false"><span class="dot" aria-hidden="true"></span><span id="camera-label">카메라 켜기</span></button>
       <label class="spread" for="spread"><span>빛 번짐</span><input id="spread" type="range" min="0" max="100" value="70"><output for="spread" id="spread-value">70</output></label>
     </div>
-    <p id="message" role="status" aria-live="polite">카메라를 켜면, 당신의 윤곽에서 아홉 가지 빛이 스며듭니다.</p>
+    <p id="message" role="status" aria-live="polite">하나의 모습, 아홉 가지 빛. 카메라를 켜보세요.</p>
     <p class="privacy">영상은 기기 안에서만 처리됩니다.</p>
   </main>`
 
@@ -112,7 +112,7 @@ button.addEventListener('click', async () => {
     if (token !== generation) return
     button.setAttribute('aria-pressed', 'true')
     label.textContent = '카메라 끄기'
-    message.textContent = '윤곽에서 안쪽으로 빛이 스며듭니다. 움직이며 아홉 가지 조합을 만나보세요.'
+    message.textContent = '하나의 모습이 9칸에 이어집니다. 위치마다 다른 도형의 빛이 스며듭니다.'
     void tick(token)
   } catch (error) {
     if (token !== generation) return
