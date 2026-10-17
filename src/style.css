@@ -1,11 +1,76 @@
-html, body, #app {
-  margin: 0;
-  width: 100%;
-  min-height: 100%;
-  background: #000;
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #e4e4e8;
+  background: #08090a;
+  color-scheme: dark;
+  font-synthesis: none;
 }
-
-body {
-  min-height: 100vh;
-  min-height: 100dvh;
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; min-height: 100dvh; }
+main {
+  width: min(100%, 800px, calc(100svh - 118px));
+  margin: 0 auto;
+  padding: 7px;
+}
+.mosaic {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(5px, .85vw, 8px);
+  width: 100%;
+  aspect-ratio: 1;
+}
+.tile {
+  position: relative;
+  overflow: hidden;
+  border-radius: clamp(7px, 1.4vw, 13px);
+  background: #08090a;
+  aspect-ratio: 1;
+  isolation: isolate;
+}
+.tile::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid #ffffff22;
+  border-radius: inherit;
+  pointer-events: none;
+}
+canvas { display: block; width: 100%; height: 100%; }
+.toolbar { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 17px 3px 6px; }
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 38px;
+  border: 1px solid #39393f;
+  border-radius: 100px;
+  padding: 9px 17px;
+  background: #19191d;
+  color: #f8f8fa;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .2s;
+}
+button:hover { background: #303037; }
+button:disabled { opacity: .5; cursor: wait; }
+.dot { width: 6px; height: 6px; background: #8c8c99; border-radius: 50%; }
+button[aria-pressed='true'] .dot { background: #59f0c4; box-shadow: 0 0 8px #59f0c4aa; }
+.spread { display: flex; align-items: center; gap: 12px; font-size: 10px; color: #a4a4ae; white-space: nowrap; }
+input { width: clamp(65px, 14vw, 140px); height: 3px; accent-color: #f1bbdc; cursor: pointer; }
+output { min-width: 18px; color: #dad8df; font-variant-numeric: tabular-nums; }
+button:focus-visible, input:focus-visible { outline: 2px solid #ff8ec1; outline-offset: 5px; }
+#message { color: #aaaab3; font-size: 10px; line-height: 1.7; margin: 6px 4px 0; }
+.privacy { color: #666670; font-size: 9px; margin: 4px; }
+@media (max-width: 550px) {
+  main { width: 100%; padding: 5px; }
+  .toolbar { padding: 15px 5px 6px; gap: 10px; }
+  .spread { gap: 8px; }
+  #message { padding: 0 4px; }
+  .privacy { padding: 0 4px; }
+}
+@media (max-height: 500px) and (min-width: 551px) {
+  main { width: min(100%, 420px); }
 }
