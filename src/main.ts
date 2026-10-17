@@ -5,7 +5,7 @@ import type { SelfieSegmentation } from '@mediapipe/selfie_segmentation'
 const app = document.querySelector<HTMLDivElement>('#app')!
 app.innerHTML = `
   <main>
-    <div class="mosaic" aria-label="9가지 색과 도형으로 표현하는 네온 카메라">
+    <div class="mosaic" aria-label="9가지 색감과 윤곽광으로 표현하는 네온 카메라">
       ${Array.from({ length: 9 }, (_, i) => `<div class="tile"><canvas aria-label="네온 조합 ${i + 1}"></canvas></div>`).join('')}
     </div>
     <div class="toolbar">
@@ -112,7 +112,7 @@ button.addEventListener('click', async () => {
     if (token !== generation) return
     button.setAttribute('aria-pressed', 'true')
     label.textContent = '카메라 끄기'
-    message.textContent = '하나의 모습이 9칸에 이어집니다. 위치마다 다른 도형의 빛이 스며듭니다.'
+    message.textContent = '한 명의 모습에, 위치마다 다른 색감과 부드러운 윤곽광이 입혀집니다.'
     void tick(token)
   } catch (error) {
     if (token !== generation) return
