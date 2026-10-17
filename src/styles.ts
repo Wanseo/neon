@@ -5,6 +5,7 @@ export interface NeonStyle {
   body: RGB
   rim: RGB
   highlight: RGB
+  bloom?: boolean
 }
 
 // Transfer only the reference's colors and edge treatment; no shape or texture is sampled.
@@ -12,7 +13,7 @@ export const styles: readonly NeonStyle[] = [
   { background: '#ff350d', shadow: [0, 112, 151], body: [0, 204, 225], rim: [255, 156, 207], highlight: [216, 251, 255] },
   { background: '#cbd0f5', shadow: [193, 0, 51], body: [255, 13, 62], rim: [255, 133, 182], highlight: [255, 216, 236] },
   { background: '#039dc3', shadow: [87, 112, 65], body: [255, 150, 92], rim: [225, 151, 176], highlight: [255, 196, 187] },
-  { background: '#ff91c5', shadow: [77, 136, 158], body: [255, 35, 146], rim: [255, 152, 211], highlight: [255, 216, 233] },
+  { background: '#ff91c5', shadow: [195, 0, 112], body: [255, 0, 143], rim: [255, 0, 143], highlight: [255, 0, 143], bloom: false },
   { background: '#afd2ec', shadow: [0, 98, 78], body: [255, 103, 34], rim: [255, 57, 19], highlight: [255, 196, 175] },
   { background: '#ff3d0c', shadow: [21, 154, 171], body: [0, 220, 224], rim: [255, 164, 221], highlight: [255, 244, 255] },
   { background: '#03adc1', shadow: [98, 130, 45], body: [255, 162, 90], rim: [123, 153, 67], highlight: [255, 191, 133] },

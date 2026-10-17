@@ -104,8 +104,8 @@ export function createMosaic(canvases: HTMLCanvasElement[]) {
         const j = (y * size + x) * 4
         const globalIndex = (offsetY + y) * maskSize + offsetX + x
         const energy = strength[globalIndex]!
-        const rim = Math.exp(-distance[globalIndex]! / reach)
-        const core = Math.exp(-distance[globalIndex]! / 11) * .58
+        const rim = style.bloom === false ? 0 : Math.exp(-distance[globalIndex]! / reach)
+        const core = style.bloom === false ? 0 : Math.exp(-distance[globalIndex]! / 11) * .58
         const toneIndex = luminance[globalIndex]! * 3
         for (let channel = 0; channel < 3; channel++) {
           const body = toneTable[toneIndex + channel]!
@@ -117,14 +117,16 @@ export function createMosaic(canvases: HTMLCanvasElement[]) {
       lightContext.putImageData(image, 0, 0)
       context.fillStyle = style.background
       context.fillRect(0, 0, size, size)
+      if (style.bloom !== false) {
+        context.save()
+        context.globalCompositeOperation = 'screen'
+        context.filter = 'blur(18px)'
+        context.globalAlpha = .32 + spread * .2
+        context.drawImage(light, 0, 0)
+        context.restore()
+      }
       context.save()
-      context.globalCompositeOperation = 'screen'
-      context.filter = 'blur(18px)'
-      context.globalAlpha = .32 + spread * .2
-      context.drawImage(light, 0, 0)
-      context.restore()
-      context.save()
-      context.filter = 'blur(1.8px)'
+      context.filter = style.bloom === false ? 'none' : 'blur(1.8px)'
       context.drawImage(light, 0, 0)
       context.restore()
     })
