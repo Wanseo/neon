@@ -22,7 +22,7 @@ main {
 .tile {
   position: relative;
   overflow: hidden;
-  border-radius: clamp(7px, 1.4vw, 13px);
+  border-radius: 0;
   background: #08090a;
   aspect-ratio: 1;
   isolation: isolate;

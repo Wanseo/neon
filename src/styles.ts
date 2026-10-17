@@ -24,7 +24,7 @@ export function createToneTable(style: NeonStyle) {
   const table = new Float32Array(256 * 3)
   for (let tone = 0; tone < 256; tone++) {
     // Compress internal contrast after spatial blur: broad shading, no fine face features.
-    const t = .42 + .55 * Math.pow(tone / 255, .8)
+    const t = .74 + .18 * Math.pow(tone / 255, .8)
     for (let channel = 0; channel < 3; channel++) {
       table[tone * 3 + channel] = style.shadow[channel]! * (1 - t) + style.body[channel]! * t
     }

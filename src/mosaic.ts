@@ -69,7 +69,8 @@ export function createMosaic(canvases: HTMLCanvasElement[]) {
     toneContext.clearRect(0, 0, maskSize, maskSize)
     toneContext.translate(maskSize, 0)
     toneContext.scale(-1, 1)
-    toneContext.filter = 'blur(26px)'
+    // Remove small facial features before applying the palette.
+    toneContext.filter = 'blur(56px)'
     toneContext.drawImage(camera, (camera.width - cameraSide) / 2, (camera.height - cameraSide) / 2, cameraSide, cameraSide, 0, 0, maskSize, maskSize)
     toneContext.restore()
     const tones = toneContext.getImageData(0, 0, maskSize, maskSize).data
