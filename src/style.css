@@ -86,5 +86,5 @@ body::after {
   background-repeat: repeat;
   background-size: 192px 192px;
   mix-blend-mode: soft-light;
-  opacity: .28;
+  opacity: .48;
 }

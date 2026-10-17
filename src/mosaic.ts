@@ -14,7 +14,7 @@ export async function createSegmenter() {
   })
   const Model = await library
   const model = new Model({ locateFile: file => `${import.meta.env.BASE_URL}mediapipe/${file}` })
-  model.setOptions({ modelSelection: 1, selfieMode: false })
+  model.setOptions({ modelSelection: 0, selfieMode: false })
   return model
 }
 
@@ -59,7 +59,10 @@ export function createMosaic(canvases: HTMLCanvasElement[]) {
     maskContext.clearRect(0, 0, maskSize, maskSize)
     maskContext.translate(maskSize, 0)
     maskContext.scale(-1, 1)
-    maskContext.filter = 'blur(1px)'
+    // Smooth the upscaled segmentation before measuring the contour.
+    maskContext.imageSmoothingEnabled = true
+    maskContext.imageSmoothingQuality = 'high'
+    maskContext.filter = 'blur(5px)'
     maskContext.drawImage(source, (source.width - side) / 2, (source.height - side) / 2, side, side, 0, 0, maskSize, maskSize)
     maskContext.restore()
     // Use the actual person's broad light/shadow regions, never a fixed design.
@@ -87,9 +90,9 @@ export function createMosaic(canvases: HTMLCanvasElement[]) {
       pixels[i * 4] = value
     }
     inwardDistance(pixels, maskSize, distance)
-    const reach = 8 + spread * 46
+    const reach = 16 + spread * 76
     for (let i = 0; i < strength.length; i++) {
-      const occupancy = Math.max(0, Math.min(1, (pixels[i * 4]! - 65) / 145))
+      const occupancy = Math.max(0, Math.min(1, (pixels[i * 4]! - 40) / 175))
       strength[i] = occupancy
     }
     contexts.forEach((context, tile) => {
@@ -102,7 +105,7 @@ export function createMosaic(canvases: HTMLCanvasElement[]) {
         const globalIndex = (offsetY + y) * maskSize + offsetX + x
         const energy = strength[globalIndex]!
         const rim = Math.exp(-distance[globalIndex]! / reach)
-        const core = Math.exp(-distance[globalIndex]! / 5) * .55
+        const core = Math.exp(-distance[globalIndex]! / 11) * .58
         const toneIndex = luminance[globalIndex]! * 3
         for (let channel = 0; channel < 3; channel++) {
           const body = toneTable[toneIndex + channel]!
@@ -116,12 +119,12 @@ export function createMosaic(canvases: HTMLCanvasElement[]) {
       context.fillRect(0, 0, size, size)
       context.save()
       context.globalCompositeOperation = 'screen'
-      context.filter = 'blur(13px)'
+      context.filter = 'blur(18px)'
       context.globalAlpha = .32 + spread * .2
       context.drawImage(light, 0, 0)
       context.restore()
       context.save()
-      context.filter = 'blur(1px)'
+      context.filter = 'blur(1.8px)'
       context.drawImage(light, 0, 0)
       context.restore()
     })
