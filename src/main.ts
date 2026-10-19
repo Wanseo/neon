@@ -1,4 +1,5 @@
 import './style.css'
+import backgroundUrl from './assets/blue-paper.png'
 import { cities, alignmentReference } from './poster-layout'
 import { alignCity, fitCitySize } from './align-city'
 import { installHoverMotion, type HoverRow } from './hover-motion'
@@ -13,7 +14,13 @@ title.id = 'poster-title'
 title.textContent = `도시: ${cities.map(row => row.city).join(', ')}`
 poster.append(title)
 
-await document.fonts.load('900 100px "Poster Inter Tight"')
+const background = new Image()
+background.src = backgroundUrl
+// Prepare both assets together so the first visible frame contains the whole poster.
+await Promise.all([
+  document.fonts.load('900 100px "Poster Inter Tight"').catch(() => []),
+  background.decode().catch(() => {}),
+])
 const context = document.createElement('canvas').getContext('2d')!
 const reference = alignmentReference
 context.font = `900 ${reference.size}px "Poster Inter Tight"`
@@ -68,3 +75,5 @@ poster.insertBefore(hoverSurface, title.nextSibling)
 document.querySelector<HTMLDivElement>('#app')!.append(poster)
 
 installHoverMotion(poster, hoverRows, left, right)
+
+requestAnimationFrame(() => { document.documentElement.classList.add('is-ready') })

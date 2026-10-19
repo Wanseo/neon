@@ -6,11 +6,14 @@
   font-display: block;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: #194477; }
+html, body { margin: 0; height: 100%; }
+html { background: #fff; }
+html.is-ready body { visibility: visible; }
 body {
   height: 100dvh;
   overflow: hidden;
   overscroll-behavior: none;
+  background-color: #194477;
   background-image: url('./assets/blue-paper.png');
   background-position: center;
   background-size: cover;
