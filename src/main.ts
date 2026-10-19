@@ -1,6 +1,7 @@
 import './style.css'
 import { cities, dates } from './poster-layout'
 import { alignCity, fitCitySize } from './align-city'
+import { installHoverMotion, type HoverRow } from './hover-motion'
 
 const svgNS = 'http://www.w3.org/2000/svg'
 const poster = document.createElementNS(svgNS, 'svg')
@@ -23,6 +24,7 @@ const right = reference.x + referenceMetrics.actualBoundingBoxRight
 const family = '"Poster Inter Tight"'
 let previousBottom = 0
 const shifts: number[] = []
+const hoverRows: HoverRow[] = []
 for (const [index, row] of cities.entries()) {
   context.font = `900 ${row.size}px ${family}`
   const originalMetrics = context.measureText(row.city)
@@ -52,7 +54,12 @@ for (const [index, row] of cities.entries()) {
       text.append(span)
     }
   }
-  poster.append(text)
+  const group = document.createElementNS(svgNS, 'g')
+  const word = document.createElementNS(svgNS, 'g')
+  word.append(text)
+  group.append(word)
+  poster.append(group)
+  hoverRows.push({ group, word, top, bottom: previousBottom })
 }
 const posterHeight = Math.max(1536, previousBottom + 26)
 poster.setAttribute('viewBox', `0 0 1024 ${posterHeight}`)
@@ -66,6 +73,8 @@ for (const [index, row] of dates.entries()) {
   text.setAttribute('font-size', String(row.size))
   text.setAttribute('fill', row.lime ? '#a8f000' : '#0b0b0a')
   text.textContent = row.text
-  poster.append(text)
+  hoverRows[cityIndex]!.group.append(text)
 }
 document.querySelector<HTMLDivElement>('#app')!.append(poster)
+
+installHoverMotion(poster, hoverRows, left, right)
