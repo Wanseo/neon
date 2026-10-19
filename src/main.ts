@@ -24,7 +24,7 @@ for (const channel of ['R', 'G', 'B']) {
   const component = document.createElementNS(svgNS, `feFunc${channel}`)
   component.setAttribute('type', 'linear')
   component.setAttribute('slope', '1')
-  component.setAttribute('intercept', '0.14')
+  component.setAttribute('intercept', '0.20')
   transfer.append(component)
 }
 brighterInk.append(transfer)
