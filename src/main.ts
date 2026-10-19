@@ -90,6 +90,10 @@ for (const [index, row] of cities.entries()) {
   const word = document.createElementNS(svgNS, 'g')
   const ink = text.cloneNode(true) as SVGTextElement
   ink.setAttribute('fill', 'url(#stone-ink)')
+  ink.setAttribute('stroke', '#080808')
+  ink.setAttribute('stroke-width', '1.5')
+  ink.setAttribute('stroke-linejoin', 'round')
+  ink.setAttribute('paint-order', 'stroke fill')
   ink.setAttribute('opacity', '0')
   ink.setAttribute('aria-hidden', 'true')
   ink.setAttribute('pointer-events', 'none')
