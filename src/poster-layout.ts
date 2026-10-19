@@ -8,14 +8,14 @@ export const alignmentReference = {
 // Positions measured from the existing artwork; each row stays in its original area.
 export const cities = [
   {
-    "city": "2xGraz",
+    "city": "NewYork",
     "x": 254.84764422471704,
     "y": 237.63716368546937,
     "size": 157.6177887641478,
     "lime": false
   },
   {
-    "city": "Rostock",
+    "city": "Amsterdam",
     "x": 253.92963894716954,
     "y": 347.045452285541,
     "size": 135.67870176101505,
@@ -29,7 +29,7 @@ export const cities = [
     "lime": false
   },
   {
-    "city": "Dresden",
+    "city": "Sydney",
     "x": 254.0254269560887,
     "y": 561.7146107351749,
     "size": 132.4857681303766,
