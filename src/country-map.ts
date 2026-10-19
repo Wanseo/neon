@@ -55,8 +55,8 @@ export function installCountryMap(poster: SVGSVGElement, rows: HoverRow[], motio
     panel.style.setProperty('--map-left', `${left}px`)
     panel.style.setProperty('--map-width', `${Math.max(0, Math.min(260, window.innerWidth - left - 12))}px`)
     const textBox = rows[index]!.text.getBBox()
-    clockAnchor.setAttribute('x', String(textBox.x))
-    clockAnchor.setAttribute('y', String(rows[index]!.top - 60))
+    clockAnchor.setAttribute('x', String(textBox.x - 318))
+    clockAnchor.setAttribute('y', String(rows[index]!.top))
   }
   window.addEventListener('resize', () => {
     if (selected >= 0) positionPanel(selected)
