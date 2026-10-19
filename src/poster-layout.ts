@@ -8,84 +8,84 @@ export const alignmentReference = {
 // Positions measured from the existing artwork; each row stays in its original area.
 export const cities = [
   {
-    "city": "Seoul",
+    "city": "2xGraz",
     "x": 254.84764422471704,
     "y": 237.63716368546937,
     "size": 157.6177887641478,
     "lime": false
   },
   {
-    "city": "Paris",
+    "city": "Rostock",
     "x": 253.92963894716954,
     "y": 347.045452285541,
     "size": 135.67870176101505,
     "lime": false
   },
   {
-    "city": "Tokyo",
+    "city": "Bremen",
     "x": 253.76,
     "y": 457.17333333333335,
     "size": 141.33333333333334,
     "lime": false
   },
   {
-    "city": "Berlin",
+    "city": "Dresden",
     "x": 254.0254269560887,
     "y": 561.7146107351749,
     "size": 132.4857681303766,
     "lime": false
   },
   {
-    "city": "New York",
+    "city": "Berlin",
     "x": 252.64556962025316,
     "y": 710.4303797468355,
     "size": 178.48101265822785,
     "lime": false
   },
   {
-    "city": "Rome",
+    "city": "Heidelberg",
     "x": 255.33333333333334,
     "y": 787.4444444444445,
     "size": 88.88888888888889,
     "lime": false
   },
   {
-    "city": "London",
+    "city": "Stuttgart",
     "x": 255.91666666666666,
     "y": 887.1666666666666,
     "size": 108.33333333333333,
     "lime": false
   },
   {
-    "city": "Sydney",
+    "city": "London",
     "x": 253.51562379954123,
     "y": 1020.1198208778303,
     "size": 149.47920668195937,
     "lime": false
   },
   {
-    "city": "Barcelona",
+    "city": "Brussels",
     "x": 254.16690100844562,
     "y": 1121.2720754611566,
     "size": 127.76996638514615,
     "lime": false
   },
   {
-    "city": "Brussels",
+    "city": "Nijmegen",
     "x": 255,
     "y": 1209,
     "size": 100,
     "lime": false
   },
   {
-    "city": "Singapore",
+    "city": "Tilburg",
     "x": 255.8080808080808,
     "y": 1322.7777777777778,
     "size": 119.19191919191918,
     "lime": false
   },
   {
-    "city": "Amsterdam",
+    "city": "Paris",
     "x": 255.84810126582278,
     "y": 1506.8987341772151,
     "size": 205.06329113924048,
