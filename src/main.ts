@@ -1,5 +1,5 @@
 import './style.css'
-import { cities } from './poster-layout'
+import { cities, alignmentReference } from './poster-layout'
 import { alignCity, fitCitySize } from './align-city'
 import { installHoverMotion, type HoverRow } from './hover-motion'
 
@@ -10,12 +10,12 @@ poster.setAttribute('role', 'img')
 poster.setAttribute('aria-labelledby', 'poster-title')
 const title = document.createElementNS(svgNS, 'title')
 title.id = 'poster-title'
-title.textContent = '공연 도시: Graz부터 Paris까지'
+title.textContent = `도시: ${cities.map(row => row.city).join(', ')}`
 poster.append(title)
 
 await document.fonts.load('900 100px "Poster Inter Tight"')
 const context = document.createElement('canvas').getContext('2d')!
-const reference = cities[0]
+const reference = alignmentReference
 context.font = `900 ${reference.size}px "Poster Inter Tight"`
 const referenceMetrics = context.measureText(reference.city)
 const left = reference.x - referenceMetrics.actualBoundingBoxLeft
@@ -28,7 +28,7 @@ for (const [index, row] of cities.entries()) {
   context.font = `900 ${row.size}px ${family}`
   const originalMetrics = context.measureText(row.city)
   const originalTop = row.y - originalMetrics.actualBoundingBoxAscent
-  const size = row === reference ? row.size : fitCitySize(context, row.city, right - left, family)
+  const size = fitCitySize(context, row.city, right - left, family)
   const metrics = context.measureText(row.city)
   // Keep original positions where possible, moving a row only to avoid overlap.
   const top = index === 0 ? originalTop : Math.max(originalTop, previousBottom + 6)
@@ -38,19 +38,14 @@ for (const [index, row] of cities.entries()) {
   text.setAttribute('y', String(y))
   text.setAttribute('font-size', String(size))
   text.setAttribute('fill', '#0b0b0a')
-  if (row === reference) {
-    text.setAttribute('x', String(row.x))
-    text.textContent = row.city
-  } else {
-    text.style.fontKerning = 'none'
-    text.style.fontVariantLigatures = 'none'
-    context.font = `900 ${size}px ${family}`
-    for (const glyph of alignCity(context, row.city, left, right)) {
-      const span = document.createElementNS(svgNS, 'tspan')
-      span.setAttribute('x', String(glyph.x))
-      span.textContent = glyph.character
-      text.append(span)
-    }
+  text.style.fontKerning = 'none'
+  text.style.fontVariantLigatures = 'none'
+  context.font = `900 ${size}px ${family}`
+  for (const glyph of alignCity(context, row.city, left, right)) {
+    const span = document.createElementNS(svgNS, 'tspan')
+    span.setAttribute('x', String(glyph.x))
+    span.textContent = glyph.character
+    text.append(span)
   }
   const group = document.createElementNS(svgNS, 'g')
   const word = document.createElementNS(svgNS, 'g')
