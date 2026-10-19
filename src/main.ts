@@ -59,7 +59,7 @@ for (const [index, row] of cities.entries()) {
   word.append(text)
   group.append(word)
   poster.append(group)
-  hoverRows.push({ group, word, top, bottom: previousBottom })
+  hoverRows.push({ group, word, text, lime: row.lime, top, bottom: previousBottom })
 }
 const posterHeight = Math.max(1536, previousBottom + 26)
 poster.setAttribute('viewBox', `0 0 1024 ${posterHeight}`)
