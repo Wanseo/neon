@@ -65,7 +65,7 @@ svg, svg * {
 .map-credit { display: block; padding: 8px 10%; color: inherit; font: 8px sans-serif; text-decoration: none; }
 .city-clock {
   display: block;
-  text-align: center;
+  text-align: left;
   font-size: 47px;
   line-height: 1;
   font-family: 'Poster Inter Tight', sans-serif;
