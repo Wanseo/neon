@@ -12,6 +12,7 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
   const colors = rows.map(() => 0)
   const shifts = rows.map(() => 0)
   let active = -1
+  let selectionAnchor: { x: number; y: number } | null = null
   let panY = 0
   let panX = 0
   let frame = 0
@@ -62,34 +63,35 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
     else { frame = 0; lastTime = 0 }
   }
   function update() { if (!frame) frame = requestAnimationFrame(animate) }
-  function reset() { active = -1; update() }
-  poster.addEventListener('pointermove', event => {
+  function reset() { active = -1; selectionAnchor = null; update() }
+  window.addEventListener('pointermove', event => {
     if (event.pointerType === 'touch') return
     const matrix = poster.getScreenCTM()
     if (!matrix) return
     const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse())
-    // Keep hit regions fixed while the visible lettering moves to the center.
-    // Otherwise a tiny pointer movement can select another sliding row or reset it.
-    const insideX = point.x >= left - 8 && point.x <= right + 8
-    if (insideX && active >= 0) {
-      const selected = rows[active]!
-      if (point.y >= selected.top - 8 && point.y <= selected.bottom + 8) return
-    }
+    // Hold selection through tiny physical movements while the lettering slides.
+    // Significant cursor movement selects against the CURRENT rendered positions.
+    if (active >= 0 && selectionAnchor && Math.hypot(event.clientX - selectionAnchor.x, event.clientY - selectionAnchor.y) < 10) return
     let next = -1
     let nearest = Infinity
-    if (insideX) rows.forEach((row, index) => {
-      const centerY = (row.top + row.bottom) / 2
+    rows.forEach((row, index) => {
+      const scale = 1 + .16 * amounts[index]!
+      const centerY = (row.top + row.bottom) / 2 + shifts[index]! + panY
+      const halfHeight = (row.bottom - row.top) * scale / 2
+      const halfWidth = (right - left) * scale / 2
+      const centerX = (left + right) / 2 + panX
       const distance = Math.abs(point.y - centerY)
-      if (point.y >= row.top - 3 && point.y <= row.bottom + 3 && distance < nearest) {
+      if (Math.abs(point.x - centerX) <= halfWidth + 8 && distance <= halfHeight + 3 && distance < nearest) {
         next = index
         nearest = distance
       }
     })
+    if (next !== active) selectionAnchor = next < 0 ? null : { x: event.clientX, y: event.clientY }
     active = next
     update()
   })
-  poster.addEventListener('pointerleave', reset)
-  poster.addEventListener('pointercancel', reset)
+  window.addEventListener('pointerout', event => { if (!event.relatedTarget) reset() })
+  window.addEventListener('pointercancel', reset)
   reducedMotion.addEventListener('change', update)
   window.addEventListener('blur', reset)
   window.addEventListener('pagehide', () => { cancelAnimationFrame(frame); frame = 0; lastTime = 0 })
