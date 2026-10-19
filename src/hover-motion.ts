@@ -14,17 +14,6 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
   rows.forEach(row => layer.append(row.group))
   poster.append(layer)
   let drawnPan = NaN
-  const period = rows[rows.length - 1]!.bottom - rows[0]!.top + 6
-  const wrapOffsets = rows.map(() => NaN)
-  const repeatedInk = rows.map(row => [-1, 1].map(direction => {
-    const copy = row.word.cloneNode(true) as SVGGElement
-    copy.setAttribute('transform', `translate(0 ${direction * period})`)
-    copy.setAttribute('aria-hidden', 'true')
-    row.group.append(copy)
-    return copy.lastElementChild as SVGTextElement
-  }))
-  const cycleDelta = (distance: number) => distance - Math.round(distance / period) * period
-  const rowCenter = (index: number) => (rows[index]!.top + rows[index]!.bottom) / 2
   let geometry: { bounds: DOMRect; inverse: DOMMatrix; unitsPerPixel: number } | null = null
   function readGeometry() {
     if (geometry) return geometry
@@ -56,8 +45,7 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
     let moving = false
     const activeCenter = active < 0 ? 0 : (rows[active]!.top + rows[active]!.bottom) / 2
     const viewBox = poster.viewBox.baseVal
-    const viewportCenter = viewBox.y + viewBox.height / 2
-    const targetY = scrollTarget ?? (active < 0 ? panY : panY + cycleDelta(viewportCenter - activeCenter - panY))
+    const targetY = scrollTarget ?? (active < 0 || reducedMotion.matches ? 0 : viewBox.y + viewBox.height / 2 - activeCenter)
     // Slow travel while aiming, without stop/start pauses during pointer movement.
     const aiming = scrollTarget === null && active >= 0 && time - lastMoveTime < 85
     const followPan = (value: number, target: number) => {
@@ -75,15 +63,9 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
       drawnPan = renderedPan
     }
     rows.forEach((row, index) => {
-      const offset = Math.round((viewportCenter - rowCenter(index) - renderedPan) / period) * period
-      if (offset !== wrapOffsets[index]) {
-        row.group.setAttribute('transform', `translate(0 ${offset})`)
-        wrapOffsets[index] = offset
-      }
       const opacity = active === index ? 1 : 0
       if (opacity !== drawnOpacity[index]) {
         row.ink.setAttribute('opacity', String(opacity))
-        repeatedInk[index]!.forEach(ink => ink.setAttribute('opacity', String(opacity)))
         drawnOpacity[index] = opacity
       }
     })
@@ -113,10 +95,11 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
     let next = -1
     let nearest = Infinity
     rows.forEach((row, index) => {
+      const centerY = (row.top + row.bottom) / 2 + panY
       const halfHeight = (row.bottom - row.top) / 2
       const halfWidth = (right - left) / 2
       const centerX = (left + right) / 2
-      const distance = Math.abs(cycleDelta(point.y - rowCenter(index) - panY))
+      const distance = Math.abs(point.y - centerY)
       if (Math.abs(point.x - centerX) <= halfWidth + 8 && distance <= halfHeight + 3 && distance < nearest) {
         next = index
         nearest = distance
@@ -138,13 +121,15 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
     const viewBox = poster.viewBox.baseVal
     const deltaPixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? bounds.height : 1)
     const center = viewBox.y + viewBox.height / 2
-    scrollTarget = (scrollTarget ?? panY) - deltaPixels * unitsPerPixel
+    const minimum = center - (rows[rows.length - 1]!.top + rows[rows.length - 1]!.bottom) / 2
+    const maximum = center - (rows[0]!.top + rows[0]!.bottom) / 2
+    scrollTarget = Math.max(minimum, Math.min(maximum, (scrollTarget ?? panY) - deltaPixels * unitsPerPixel))
     lastWheelTime = performance.now()
     selectionAnchor = null
     // Highlight the city passing through the center without cancelling manual scrolling.
     let nearest = Infinity
-    if (selected < 0) rows.forEach((_, index) => {
-      const distance = Math.abs(cycleDelta(rowCenter(index) + scrollTarget! - center))
+    if (selected < 0) rows.forEach((row, index) => {
+      const distance = Math.abs((row.top + row.bottom) / 2 + scrollTarget! - center)
       if (distance < nearest) { nearest = distance; active = index }
     })
     event.preventDefault()
@@ -155,7 +140,6 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
   reducedMotion.addEventListener('change', update)
   window.addEventListener('blur', reset)
   window.addEventListener('pagehide', () => { cancelAnimationFrame(frame); frame = 0; lastTime = 0 })
-  update()
   return {
     refreshGeometry: invalidateGeometry,
     select(index: number) {
