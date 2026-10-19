@@ -12,8 +12,6 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
   const colors = rows.map(() => 0)
   const shifts = rows.map(() => 0)
   let active = -1
-  let selectionLocked = false
-  let lastPointer: { x: number; y: number } | null = null
   let selectionAnchor: { x: number; y: number } | null = null
   let panY = 0
   let panX = 0
@@ -23,7 +21,7 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
   function animate(time: number) {
     const dt = lastTime ? Math.min(time - lastTime, 50) : 16.67
     lastTime = time
-    const easing = reducedMotion.matches ? 1 : 1 - Math.exp(-dt / 155)
+    const easing = reducedMotion.matches ? 1 : 1 - Math.exp(-dt / 95)
     let moving = false
     const follow = (value: number, target: number, tolerance = .0005) => {
       const next = value + (target - value) * easing
@@ -61,32 +59,24 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
       const color = [11 + (168 - 11) * blend, 11 + (240 - 11) * blend, 10 * (1 - blend)].map(Math.round)
       row.text.setAttribute('fill', `rgb(${color.join(' ')})`)
     })
-    if (selectionLocked && !moving) {
-      // Start the next gesture from where the physical cursor is NOW, not where
-      // the previous selection began before the list travelled across the screen.
-      selectionLocked = false
-      selectionAnchor = lastPointer
-    }
     if (moving) frame = requestAnimationFrame(animate)
     else { frame = 0; lastTime = 0 }
   }
   function update() { if (!frame) frame = requestAnimationFrame(animate) }
-  function reset() { active = -1; selectionLocked = false; selectionAnchor = null; update() }
+  function reset() { active = -1; selectionAnchor = null; update() }
   window.addEventListener('pointermove', event => {
     if (event.pointerType === 'touch') return
     const matrix = poster.getScreenCTM()
     if (!matrix) return
     const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse())
-    lastPointer = { x: event.clientX, y: event.clientY }
     const bounds = poster.getBoundingClientRect()
     const outside = event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom
     if (outside) { reset(); return }
     const outsideColumn = point.x < left - 90 || point.x > right + 90
     if (outsideColumn) { reset(); return }
-    // Keep the chosen word while it travels, including the empty space it leaves
-    // behind at the very bottom. The moving content cannot cancel its own hover.
-    if (selectionLocked) return
-    if (active >= 0 && selectionAnchor && Math.hypot(event.clientX - selectionAnchor.x, event.clientY - selectionAnchor.y) < 10) return
+    // Ignore only tiny physical jitter. A new deliberate hover can interrupt
+    // the current transition immediately; empty space still preserves selection.
+    if (active >= 0 && selectionAnchor && Math.hypot(event.clientX - selectionAnchor.x, event.clientY - selectionAnchor.y) < 3) return
     let next = -1
     let nearest = Infinity
     rows.forEach((row, index) => {
@@ -104,7 +94,6 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
     if (next < 0 && active >= 0) return
     if (next !== active) {
       selectionAnchor = next < 0 ? null : { x: event.clientX, y: event.clientY }
-      selectionLocked = next >= 0
       active = next
       update()
     }
