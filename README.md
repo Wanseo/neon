@@ -35,7 +35,11 @@ Actions 화면의 **Run workflow**로 수동 실행할 수도 있습니다.
 참조할 때는 `${import.meta.env.BASE_URL}파일명` 형식을 사용하세요.
 HTML에서는 `%BASE_URL%파일명` 형식을 사용할 수 있습니다.
 
-## 가운데 이미지
+## 포스터 텍스트
 
-`src/assets/reference.png` (또는 jpg, jpeg, webp)에 원본 이미지를 넣으면
-흰 배경의 화면 가운데에서 비율을 보존해 표시합니다. 원본이 없으면 흰 화면을 표시합니다.
+도시 이름과 날짜는 이미지가 아닌 SVG 텍스트이며, `src/poster-layout.ts`의
+행별 좌표에 배치합니다. 원본 아트워크의 행 위치를 기준으로 하고, 별도의
+자간 또는 줄 간격 속성은 적용하지 않습니다. 서체 차이로 글자 폭은 달라질 수 있습니다.
+
+Inter Tight Black(900)을 프로젝트에 포함해 기기마다 같은 서체를 사용합니다.
+출처: Google Fonts. 라이선스는 `public/licenses/InterTight-OFL.txt`에 있습니다.

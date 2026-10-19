@@ -1,3 +1,10 @@
+@font-face {
+  font-family: 'Poster Inter Tight';
+  src: url('./assets/fonts/InterTight-Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: block;
+}
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; background: #fff; }
 #app {
@@ -7,11 +14,12 @@ html, body { margin: 0; min-height: 100%; background: #fff; }
   place-items: center;
   padding: 24px;
 }
-img {
+svg {
   display: block;
-  max-width: 100%;
-  max-height: calc(100dvh - 48px);
-  width: auto;
+  width: min(calc(100vw - 48px), calc((100dvh - 48px) * 2 / 3));
   height: auto;
-  object-fit: contain;
+  overflow: visible;
+  font-family: 'Poster Inter Tight', sans-serif;
+  font-weight: 900;
+  font-synthesis: none;
 }
