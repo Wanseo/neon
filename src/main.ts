@@ -39,7 +39,7 @@ for (const [index, row] of cities.entries()) {
   const text = document.createElementNS(svgNS, 'text')
   text.setAttribute('y', String(y))
   text.setAttribute('font-size', String(size))
-  text.setAttribute('fill', row.lime ? '#a8f000' : '#0b0b0a')
+  text.setAttribute('fill', '#0b0b0a')
   if (row === reference) {
     text.setAttribute('x', String(row.x))
     text.textContent = row.city
@@ -59,7 +59,7 @@ for (const [index, row] of cities.entries()) {
   word.append(text)
   group.append(word)
   poster.append(group)
-  hoverRows.push({ group, word, text, lime: row.lime, top, bottom: previousBottom })
+  hoverRows.push({ group, word, text, top, bottom: previousBottom })
 }
 const posterHeight = Math.max(1536, previousBottom + 26)
 poster.setAttribute('viewBox', `0 0 1024 ${posterHeight}`)
@@ -71,7 +71,7 @@ for (const [index, row] of dates.entries()) {
   text.setAttribute('x', String(row.x))
   text.setAttribute('y', String(row.y + shifts[cityIndex]!))
   text.setAttribute('font-size', String(row.size))
-  text.setAttribute('fill', row.lime ? '#a8f000' : '#0b0b0a')
+  text.setAttribute('fill', '#0b0b0a')
   text.textContent = row.text
   hoverRows[cityIndex]!.group.append(text)
 }
