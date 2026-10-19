@@ -64,6 +64,14 @@ for (const [index, row] of cities.entries()) {
 const posterHeight = Math.max(1536, previousBottom + 26)
 poster.setAttribute('viewBox', `0 0 1024 ${posterHeight}`)
 poster.style.setProperty('--poster-ratio', String(1024 / posterHeight))
+// A stationary transparent surface prevents pointerleave when lettering slides away.
+const hoverSurface = document.createElementNS(svgNS, 'rect')
+hoverSurface.setAttribute('width', '1024')
+hoverSurface.setAttribute('height', String(posterHeight))
+hoverSurface.setAttribute('fill', 'transparent')
+hoverSurface.setAttribute('pointer-events', 'all')
+hoverSurface.setAttribute('aria-hidden', 'true')
+poster.insertBefore(hoverSurface, title.nextSibling)
 for (const [index, row] of dates.entries()) {
   const sideIndex = index % 13
   const cityIndex = sideIndex < 2 ? 0 : sideIndex - 1

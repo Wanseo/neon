@@ -68,20 +68,23 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
     const matrix = poster.getScreenCTM()
     if (!matrix) return
     const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse())
+    // Keep hit regions fixed while the visible lettering moves to the center.
+    // Otherwise a tiny pointer movement can select another sliding row or reset it.
+    const insideX = point.x >= left - 8 && point.x <= right + 8
+    if (insideX && active >= 0) {
+      const selected = rows[active]!
+      if (point.y >= selected.top - 8 && point.y <= selected.bottom + 8) return
+    }
     let next = -1
     let nearest = Infinity
-    rows.forEach((row, index) => {
-      const scale = 1 + .16 * amounts[index]!
-      const centerY = (row.top + row.bottom) / 2 + shifts[index]! + panY
-      const halfHeight = (row.bottom - row.top) * scale / 2
-      const halfWidth = (right - left) * scale / 2
+    if (insideX) rows.forEach((row, index) => {
+      const centerY = (row.top + row.bottom) / 2
       const distance = Math.abs(point.y - centerY)
-      if (Math.abs(point.x - ((left + right) / 2 + panX)) <= halfWidth && distance <= halfHeight + 3 && distance < nearest) {
+      if (point.y >= row.top - 3 && point.y <= row.bottom + 3 && distance < nearest) {
         next = index
         nearest = distance
       }
     })
-    // Selection changes only on pointer movement, never as the animation slides underneath it.
     active = next
     update()
   })
