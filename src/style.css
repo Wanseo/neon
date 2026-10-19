@@ -6,7 +6,8 @@
   font-display: block;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; min-height: 100%; background: #fff; }
+html, body { margin: 0; height: 100%; background: #fff; }
+body { height: 100dvh; overflow: hidden; overscroll-behavior: none; }
 #app {
   min-height: 100vh;
   min-height: 100dvh;
