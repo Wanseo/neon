@@ -15,7 +15,6 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
   let active = -1
   let selectionAnchor: { x: number; y: number } | null = null
   let panY = 0
-  let panX = 0
   let frame = 0
   let lastTime = 0
   let lastMoveTime = -Infinity
@@ -50,7 +49,6 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
     const centerX = (left + right) / 2
     const viewBox = poster.viewBox.baseVal
     const targetY = active < 0 || reducedMotion.matches ? 0 : viewBox.y + viewBox.height / 2 - activeCenter - shifts[active]!
-    const targetX = active < 0 || reducedMotion.matches ? 0 : viewBox.x + viewBox.width / 2 - centerX
     // Let the cursor catch a stationary target: pause list travel while the
     // user is moving, but keep highlight/scale feedback immediate.
     const aiming = active >= 0 && time - lastMoveTime < 85
@@ -63,11 +61,10 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
       return value + Math.max(-maxStep, Math.min(maxStep, step))
     }
     panY = followPan(panY, targetY)
-    panX = followPan(panX, targetX)
     rows.forEach((row, index) => {
       const scale = 1 + .16 * amounts[index]!
       const cy = (row.top + row.bottom) / 2
-      row.group.setAttribute('transform', `translate(${panX} ${shifts[index]! + panY})`)
+      row.group.setAttribute('transform', `translate(0 ${shifts[index]! + panY})`)
       row.word.setAttribute('transform', `translate(${centerX} ${cy}) scale(${scale}) translate(${-centerX} ${-cy})`)
       row.ink.setAttribute('opacity', String(colors[index]!))
     })
@@ -100,7 +97,7 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
       const centerY = (row.top + row.bottom) / 2 + shifts[index]! + panY
       const halfHeight = (row.bottom - row.top) * scale / 2
       const halfWidth = (right - left) * scale / 2
-      const centerX = (left + right) / 2 + panX
+      const centerX = (left + right) / 2
       const distance = Math.abs(point.y - centerY)
       if (Math.abs(point.x - centerX) <= halfWidth + 8 && distance <= halfHeight + 3 && distance < nearest) {
         next = index
