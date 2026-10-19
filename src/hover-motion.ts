@@ -2,6 +2,7 @@ export interface HoverRow {
   group: SVGGElement
   word: SVGGElement
   text: SVGTextElement
+  ink: SVGTextElement
   top: number
   bottom: number
 }
@@ -55,9 +56,7 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
       const cy = (row.top + row.bottom) / 2
       row.group.setAttribute('transform', `translate(${panX} ${shifts[index]! + panY})`)
       row.word.setAttribute('transform', `translate(${centerX} ${cy}) scale(${scale}) translate(${-centerX} ${-cy})`)
-      const blend = colors[index]!
-      const color = [11 + (168 - 11) * blend, 11 + (240 - 11) * blend, 10 * (1 - blend)].map(Math.round)
-      row.text.setAttribute('fill', `rgb(${color.join(' ')})`)
+      row.ink.setAttribute('opacity', String(colors[index]!))
     })
     if (moving) frame = requestAnimationFrame(animate)
     else { frame = 0; lastTime = 0 }

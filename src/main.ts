@@ -1,5 +1,6 @@
 import './style.css'
 import backgroundUrl from './assets/blue-paper.png'
+import inkUrl from './assets/stone-ink.png'
 import { cities, alignmentReference } from './poster-layout'
 import { alignCity, fitCitySize } from './align-city'
 import { installHoverMotion, type HoverRow } from './hover-motion'
@@ -13,13 +14,29 @@ const title = document.createElementNS(svgNS, 'title')
 title.id = 'poster-title'
 title.textContent = `도시: ${cities.map(row => row.city).join(', ')}`
 poster.append(title)
+const defs = document.createElementNS(svgNS, 'defs')
+const inkPattern = document.createElementNS(svgNS, 'pattern')
+inkPattern.id = 'stone-ink'
+inkPattern.setAttribute('patternUnits', 'userSpaceOnUse')
+inkPattern.setAttribute('width', '512')
+inkPattern.setAttribute('height', '512')
+const inkImage = document.createElementNS(svgNS, 'image')
+inkImage.setAttribute('href', inkUrl)
+inkImage.setAttribute('width', '512')
+inkImage.setAttribute('height', '512')
+inkPattern.append(inkImage)
+defs.append(inkPattern)
+poster.append(defs)
 
 const background = new Image()
 background.src = backgroundUrl
+const inkAsset = new Image()
+inkAsset.src = inkUrl
 // Prepare both assets together so the first visible frame contains the whole poster.
 await Promise.all([
   document.fonts.load('900 100px "Poster Inter Tight"').catch(() => []),
   background.decode().catch(() => {}),
+  inkAsset.decode().catch(() => {}),
 ])
 const context = document.createElement('canvas').getContext('2d')!
 const reference = alignmentReference
@@ -56,10 +73,15 @@ for (const [index, row] of cities.entries()) {
   }
   const group = document.createElementNS(svgNS, 'g')
   const word = document.createElementNS(svgNS, 'g')
-  word.append(text)
+  const ink = text.cloneNode(true) as SVGTextElement
+  ink.setAttribute('fill', 'url(#stone-ink)')
+  ink.setAttribute('opacity', '0')
+  ink.setAttribute('aria-hidden', 'true')
+  ink.setAttribute('pointer-events', 'none')
+  word.append(text, ink)
   group.append(word)
   poster.append(group)
-  hoverRows.push({ group, word, text, top, bottom: previousBottom })
+  hoverRows.push({ group, word, text, ink, top, bottom: previousBottom })
 }
 const posterHeight = Math.max(1536, previousBottom + 26)
 poster.setAttribute('viewBox', `0 0 1024 ${posterHeight}`)
