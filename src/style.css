@@ -41,13 +41,12 @@ svg, svg * {
   cursor: default;
 }
 
-.map-open .city-poster { transform: translate3d(-25vw, 0, 0); }
 .country-panel {
   position: fixed;
   top: 50%;
-  right: 5vw;
-  width: 45vw;
-  max-width: 720px;
+  left: var(--map-left, 70vw);
+  width: var(--map-width, 24vw);
+  max-width: 260px;
   color: #eeeee5;
   opacity: 0;
   transform: translate3d(35px, -50%, 0);
@@ -55,13 +54,13 @@ svg, svg * {
   transition: opacity 450ms ease, transform 750ms cubic-bezier(.2,.75,.2,1);
 }
 .map-open .country-panel { opacity: 1; transform: translate3d(0,-50%,0); pointer-events: auto; }
-.country-map { display: block; width: 100%; max-height: 66vh; overflow: visible; }
+.country-map { display: block; width: 100%; max-height: 34vh; overflow: visible; }
 .country-outline { fill: none; stroke: url(#stone-ink); stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; }
 .country-outline path { animation: trace-country 1100ms cubic-bezier(.25,.6,.25,1) both; }
 .city-marker { fill: url(#stone-ink); transition: transform 650ms cubic-bezier(.2,.75,.2,1); }
 .map-caption { display: flex; justify-content: space-between; gap: 12px; padding: 10px 10%; font-family: 'Poster Inter Tight', sans-serif; font-weight: 900; }
 .map-country { font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; align-self: center; }
-.map-city { font-size: clamp(16px, 2.2vw, 30px); }
+.map-city { font-size: clamp(12px, 1.4vw, 20px); }
 .map-close { position: absolute; top: -32px; right: 4%; width: 36px; height: 36px; border: 0; background: none; color: inherit; font-size: 30px; font-weight: 300; cursor: default; }
 .map-credit { display: block; padding: 8px 10%; color: inherit; font: 8px sans-serif; text-decoration: none; }
 .map-country, .map-city, .map-close, .map-credit {
@@ -76,11 +75,9 @@ svg, svg * {
 .map-close:focus-visible, .map-credit:focus-visible { outline: 1px solid currentColor; outline-offset: 4px; }
 @keyframes trace-country { from { stroke-dasharray: 1; stroke-dashoffset: 1; } to { stroke-dasharray: 1; stroke-dashoffset: 0; } }
 @media (max-width: 650px) {
-  .map-open .city-poster { transform: translate3d(-24vw, 0, 0); }
-  .country-panel { right: 0; width: 49vw; }
   .map-caption { flex-direction: column; padding: 12px 8%; gap: 5px; }
   .map-country { align-self: flex-start; font-size: 8px; letter-spacing: .5px; }
-  .map-city { font-size: 18px; }
+  .map-city { font-size: 12px; }
   .map-credit { padding: 8px 8%; font-size: 7px; }
 }
 @media (prefers-reduced-motion: reduce) {

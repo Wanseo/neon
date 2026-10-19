@@ -25,6 +25,16 @@ export function installCountryMap(poster: SVGSVGElement, rows: HoverRow[], motio
   let selected = -1
   let countryCode = ''
 
+  function positionPanel(index: number) {
+    const right = rows[index]!.text.getBoundingClientRect().right
+    const left = right + 12
+    panel.style.setProperty('--map-left', `${left}px`)
+    panel.style.setProperty('--map-width', `${Math.max(0, Math.min(260, window.innerWidth - left - 12))}px`)
+  }
+  window.addEventListener('resize', () => {
+    if (selected >= 0) positionPanel(selected)
+  })
+
   function show(index: number) {
     if (selected === index) { hide(); return }
     const row = cities[index]!
@@ -47,6 +57,7 @@ export function installCountryMap(poster: SVGSVGElement, rows: HoverRow[], motio
     panel.querySelector('.map-city')!.textContent = row.city
     rows.forEach((item, i) => item.group.setAttribute('aria-pressed', String(i === index)))
     selected = index
+    positionPanel(index)
     panel.inert = false
     panel.setAttribute('aria-hidden', 'false')
     document.body.classList.add('map-open')
