@@ -23,3 +23,7 @@ svg {
   font-weight: 900;
   font-synthesis: none;
 }
+
+svg, svg * {
+  cursor: default;
+}
