@@ -15,6 +15,20 @@ title.id = 'poster-title'
 title.textContent = `도시: ${cities.map(row => row.city).join(', ')}`
 poster.append(title)
 const defs = document.createElementNS(svgNS, 'defs')
+// Lift ink brightness while keeping the original texture's tonal differences.
+const brighterInk = document.createElementNS(svgNS, 'filter')
+brighterInk.id = 'brighter-ink'
+brighterInk.setAttribute('color-interpolation-filters', 'sRGB')
+const transfer = document.createElementNS(svgNS, 'feComponentTransfer')
+for (const channel of ['R', 'G', 'B']) {
+  const component = document.createElementNS(svgNS, `feFunc${channel}`)
+  component.setAttribute('type', 'linear')
+  component.setAttribute('slope', '1')
+  component.setAttribute('intercept', '0.14')
+  transfer.append(component)
+}
+brighterInk.append(transfer)
+defs.append(brighterInk)
 const inkPattern = document.createElementNS(svgNS, 'pattern')
 inkPattern.id = 'stone-ink'
 inkPattern.setAttribute('patternUnits', 'userSpaceOnUse')
@@ -22,6 +36,7 @@ inkPattern.setAttribute('width', '512')
 inkPattern.setAttribute('height', '512')
 const inkImage = document.createElementNS(svgNS, 'image')
 inkImage.setAttribute('href', inkUrl)
+inkImage.setAttribute('filter', 'url(#brighter-ink)')
 inkImage.setAttribute('width', '512')
 inkImage.setAttribute('height', '512')
 inkPattern.append(inkImage)
