@@ -83,12 +83,15 @@ for (const [index, row] of cities.entries()) {
   poster.append(group)
   hoverRows.push({ group, word, text, ink, top, bottom: previousBottom })
 }
-const posterHeight = Math.max(1536, previousBottom + 26)
-poster.setAttribute('viewBox', `0 0 1024 ${posterHeight}`)
+// Trim unused vertical margins so the whole type block fits larger without cropping.
+const posterTop = hoverRows[0]!.top - 12
+const posterHeight = previousBottom - posterTop + 12
+poster.setAttribute('viewBox', `0 ${posterTop} 1024 ${posterHeight}`)
 poster.style.setProperty('--poster-ratio', String(1024 / posterHeight))
 // A stationary transparent surface prevents pointerleave when lettering slides away.
 const hoverSurface = document.createElementNS(svgNS, 'rect')
 hoverSurface.setAttribute('width', '1024')
+hoverSurface.setAttribute('y', String(posterTop))
 hoverSurface.setAttribute('height', String(posterHeight))
 hoverSurface.setAttribute('fill', 'transparent')
 hoverSurface.setAttribute('pointer-events', 'all')

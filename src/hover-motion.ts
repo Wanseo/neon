@@ -18,6 +18,8 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
   let panX = 0
   let frame = 0
   let lastTime = 0
+  let lastMoveTime = -Infinity
+  let lastPointer: { x: number; y: number } | null = null
 
   function animate(time: number) {
     const dt = lastTime ? Math.min(time - lastTime, 50) : 16.67
@@ -49,8 +51,19 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
     const viewBox = poster.viewBox.baseVal
     const targetY = active < 0 || reducedMotion.matches ? 0 : viewBox.y + viewBox.height / 2 - activeCenter - shifts[active]!
     const targetX = active < 0 || reducedMotion.matches ? 0 : viewBox.x + viewBox.width / 2 - centerX
-    panY = follow(panY, targetY, .01)
-    panX = follow(panX, targetX, .01)
+    // Let the cursor catch a stationary target: pause list travel while the
+    // user is moving, but keep highlight/scale feedback immediate.
+    const aiming = active >= 0 && time - lastMoveTime < 85
+    const followPan = (value: number, target: number) => {
+      if (Math.abs(target - value) <= .01) return target
+      moving = true
+      if (aiming) return value
+      const step = (target - value) * (1 - Math.exp(-dt / 230))
+      const maxStep = dt * .8
+      return value + Math.max(-maxStep, Math.min(maxStep, step))
+    }
+    panY = followPan(panY, targetY)
+    panX = followPan(panX, targetX)
     rows.forEach((row, index) => {
       const scale = 1 + .16 * amounts[index]!
       const cy = (row.top + row.bottom) / 2
@@ -62,9 +75,13 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
     else { frame = 0; lastTime = 0 }
   }
   function update() { if (!frame) frame = requestAnimationFrame(animate) }
-  function reset() { active = -1; selectionAnchor = null; update() }
+  function reset() { active = -1; selectionAnchor = null; lastPointer = null; lastMoveTime = -Infinity; update() }
   window.addEventListener('pointermove', event => {
     if (event.pointerType === 'touch') return
+    if (!lastPointer || Math.hypot(event.clientX - lastPointer.x, event.clientY - lastPointer.y) >= 1.5) {
+      lastMoveTime = performance.now()
+      lastPointer = { x: event.clientX, y: event.clientY }
+    }
     const matrix = poster.getScreenCTM()
     if (!matrix) return
     const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse())

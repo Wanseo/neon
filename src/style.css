@@ -24,11 +24,11 @@ body {
   min-height: 100dvh;
   display: grid;
   place-items: center;
-  padding: 24px;
+  padding: 12px;
 }
 svg {
   display: block;
-  width: min(calc(100vw - 48px), calc((100dvh - 48px) * var(--poster-ratio, .6666667)));
+  width: min(calc(100vw - 24px), calc((100dvh - 24px) * var(--poster-ratio, .6666667)));
   height: auto;
   overflow: visible;
   font-family: 'Poster Inter Tight', sans-serif;
