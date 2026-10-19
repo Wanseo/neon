@@ -4,11 +4,13 @@ import inkUrl from './assets/stone-ink.png'
 import { cities, alignmentReference } from './poster-layout'
 import { alignCity, fitCitySize } from './align-city'
 import { installHoverMotion, type HoverRow } from './hover-motion'
+import { installCountryMap } from './country-map'
 
 const svgNS = 'http://www.w3.org/2000/svg'
 const poster = document.createElementNS(svgNS, 'svg')
 poster.setAttribute('viewBox', '0 0 1024 1536')
-poster.setAttribute('role', 'img')
+poster.classList.add('city-poster')
+poster.setAttribute('role', 'group')
 poster.setAttribute('aria-labelledby', 'poster-title')
 const title = document.createElementNS(svgNS, 'title')
 title.id = 'poster-title'
@@ -121,6 +123,7 @@ hoverSurface.setAttribute('aria-hidden', 'true')
 poster.insertBefore(hoverSurface, title.nextSibling)
 document.querySelector<HTMLDivElement>('#app')!.append(poster)
 
-installHoverMotion(poster, hoverRows, left, right)
+const motion = installHoverMotion(poster, hoverRows, left, right)
+installCountryMap(poster, hoverRows, motion)
 
 requestAnimationFrame(() => { document.documentElement.classList.add('is-ready') })

@@ -44,3 +44,15 @@ HTML에서는 `%BASE_URL%파일명` 형식을 사용할 수 있습니다.
 
 Inter Tight Black(900)을 프로젝트에 포함해 기기마다 같은 서체를 사용합니다.
 출처: Google Fonts. 라이선스는 `public/licenses/InterTight-OFL.txt`에 있습니다.
+
+
+## 도시 지도
+
+도시를 클릭하면 목록이 왼쪽으로 이동하고 국가 윤곽과 도시 위치가 표시됩니다.
+다른 도시를 클릭해 전환하고, 같은 도시를 다시 누르거나 닫기/Esc로 돌아옵니다.
+Enter와 Space로도 도시를 선택할 수 있습니다.
+
+지도는 로컬 `src/data/maps.json`을 사용합니다. Natural Earth의 국가 경계와
+GeoNames의 도시 좌표를 SVG용으로 변환했습니다. 미국은 본토, 프랑스는 유럽
+지역을 표시합니다. 출처와 라이선스는 `public/licenses/map-data.txt`에 있습니다.
+`python3 scripts/build-maps.py`로 데이터를 다시 생성할 수 있습니다.

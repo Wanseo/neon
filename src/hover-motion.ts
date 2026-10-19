@@ -30,6 +30,7 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
   window.addEventListener('resize', invalidateGeometry)
   window.addEventListener('scroll', invalidateGeometry, { passive: true })
   let active = -1
+  let selected = -1
   let selectionAnchor: { x: number; y: number } | null = null
   let panY = 0
   let scrollTarget: number | null = null
@@ -82,8 +83,9 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
     else { frame = 0; lastTime = 0 }
   }
   function update() { if (!frame) frame = requestAnimationFrame(animate) }
-  function reset() { active = -1; selectionAnchor = null; lastPointer = null; lastMoveTime = -Infinity; update() }
+  function reset() { active = selected; selectionAnchor = null; lastPointer = null; lastMoveTime = -Infinity; update() }
   window.addEventListener('pointermove', event => {
+    if (selected >= 0) return
     if (event.pointerType === 'touch' || performance.now() - lastWheelTime < 160) return
     if (!lastPointer || Math.hypot(event.clientX - lastPointer.x, event.clientY - lastPointer.y) >= 1.5) {
       lastMoveTime = performance.now()
@@ -136,7 +138,7 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
     selectionAnchor = null
     // Highlight the city passing through the center without cancelling manual scrolling.
     let nearest = Infinity
-    rows.forEach((row, index) => {
+    if (selected < 0) rows.forEach((row, index) => {
       const distance = Math.abs((row.top + row.bottom) / 2 + scrollTarget! - center)
       if (distance < nearest) { nearest = distance; active = index }
     })
@@ -148,4 +150,16 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
   reducedMotion.addEventListener('change', update)
   window.addEventListener('blur', reset)
   window.addEventListener('pagehide', () => { cancelAnimationFrame(frame); frame = 0; lastTime = 0 })
+  return {
+    refreshGeometry: invalidateGeometry,
+    select(index: number) {
+      selected = index
+      active = index
+      scrollTarget = null
+      selectionAnchor = null
+      lastMoveTime = -Infinity
+      invalidateGeometry()
+      update()
+    },
+  }
 }

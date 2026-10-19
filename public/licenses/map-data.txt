@@ -1,0 +1,12 @@
+Country outlines: Natural Earth, 1:50m Admin 0 Countries (public domain).
+https://www.naturalearthdata.com/about/terms-of-use/
+Source: https://github.com/nvkelso/natural-earth-vector
+Adapted to simplified local SVG paths. France is shown in metropolitan extent;
+United States is shown in contiguous extent for the selected city.
+Netherlands is shown in its European extent and Australia without remote territories.
+
+City coordinates: GeoNames cities15000 dataset, CC BY 4.0.
+https://www.geonames.org/
+https://download.geonames.org/export/dump/
+https://creativecommons.org/licenses/by/4.0/
+Adapted: selected city records and projected marker positions.
