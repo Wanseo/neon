@@ -64,7 +64,8 @@ svg, svg * {
 .map-city { font-size: clamp(16px, 2.2vw, 30px); }
 .map-close { position: absolute; top: -32px; right: 4%; width: 36px; height: 36px; border: 0; background: none; color: inherit; font-size: 30px; font-weight: 300; cursor: default; }
 .map-credit { display: block; padding: 8px 10%; color: inherit; opacity: .45; font: 8px sans-serif; text-decoration: none; }
-.city-poster [role='button']:focus-visible { outline: 2px solid #edf0c2; outline-offset: 6px; }
+.city-poster [role='button']:focus,
+.city-poster [role='button']:focus-visible { outline: none; }
 .map-close:focus-visible, .map-credit:focus-visible { outline: 1px solid currentColor; outline-offset: 4px; }
 @keyframes trace-country { from { stroke-dasharray: 1; stroke-dashoffset: 1; } to { stroke-dasharray: 1; stroke-dashoffset: 0; } }
 @media (max-width: 650px) {
