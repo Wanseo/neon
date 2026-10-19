@@ -6,8 +6,16 @@
   font-display: block;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: #fff; }
-body { height: 100dvh; overflow: hidden; overscroll-behavior: none; }
+html, body { margin: 0; height: 100%; background: #194477; }
+body {
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background-image: url('./assets/blue-paper.png');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
 #app {
   min-height: 100vh;
   min-height: 100dvh;
