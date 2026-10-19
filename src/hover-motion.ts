@@ -9,7 +9,6 @@ export interface HoverRow {
 
 export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left: number, right: number) {
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
-  const colors = rows.map(() => 0)
   const drawnOpacity = rows.map(() => 0)
   const layer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
   rows.forEach(row => layer.append(row.group))
@@ -43,17 +42,8 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
   function animate(time: number) {
     const dt = lastTime ? Math.min(time - lastTime, 50) : 16.67
     lastTime = time
-    const easing = reducedMotion.matches ? 1 : 1 - Math.exp(-dt / 95)
     let moving = false
-    const follow = (value: number, target: number, tolerance = .0005) => {
-      const next = value + (target - value) * easing
-      if (Math.abs(target - next) > tolerance) { moving = true; return next }
-      return target
-    }
     const activeCenter = active < 0 ? 0 : (rows[active]!.top + rows[active]!.bottom) / 2
-    rows.forEach((_, index) => {
-      colors[index] = follow(colors[index]!, active === index ? 1 : 0)
-    })
     const viewBox = poster.viewBox.baseVal
     const targetY = scrollTarget ?? (active < 0 || reducedMotion.matches ? 0 : viewBox.y + viewBox.height / 2 - activeCenter)
     // Slow travel while aiming, without stop/start pauses during pointer movement.
@@ -73,7 +63,7 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
       drawnPan = renderedPan
     }
     rows.forEach((row, index) => {
-      const opacity = Math.round(colors[index]! * 1000) / 1000
+      const opacity = active === index ? 1 : 0
       if (opacity !== drawnOpacity[index]) {
         row.ink.setAttribute('opacity', String(opacity))
         drawnOpacity[index] = opacity
