@@ -9,9 +9,7 @@ export interface HoverRow {
 
 export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left: number, right: number) {
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
-  const amounts = rows.map(() => 0)
   const colors = rows.map(() => 0)
-  const shifts = rows.map(() => 0)
   let active = -1
   let selectionAnchor: { x: number; y: number } | null = null
   let panY = 0
@@ -31,26 +29,13 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
       return target
     }
     const activeCenter = active < 0 ? 0 : (rows[active]!.top + rows[active]!.bottom) / 2
-    const extra = rows.map((row, index) => {
-      const height = row.bottom - row.top
-      const center = (row.top + row.bottom) / 2
-      const target = active >= 0 && !reducedMotion.matches
-        ? Math.exp(-.5 * ((activeCenter - center) / (height * .56)) ** 2) : 0
-      amounts[index] = follow(amounts[index]!, target)
-      colors[index] = follow(colors[index]!, active === index ? 1 : 0)
-      return height * .16 * amounts[index]!
-    })
-    const total = extra.reduce((sum, value) => sum + value, 0)
-    let preceding = 0
     rows.forEach((_, index) => {
-      shifts[index] = preceding + extra[index]! / 2 - total / 2
-      preceding += extra[index]!
+      colors[index] = follow(colors[index]!, active === index ? 1 : 0)
     })
-    const centerX = (left + right) / 2
     const viewBox = poster.viewBox.baseVal
-    const targetY = active < 0 || reducedMotion.matches ? 0 : viewBox.y + viewBox.height / 2 - activeCenter - shifts[active]!
+    const targetY = active < 0 || reducedMotion.matches ? 0 : viewBox.y + viewBox.height / 2 - activeCenter
     // Let the cursor catch a stationary target: pause list travel while the
-    // user is moving, but keep highlight/scale feedback immediate.
+    // user is moving, but keep highlight feedback immediate.
     const aiming = active >= 0 && time - lastMoveTime < 85
     const followPan = (value: number, target: number) => {
       if (Math.abs(target - value) <= .01) return target
@@ -62,10 +47,7 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
     }
     panY = followPan(panY, targetY)
     rows.forEach((row, index) => {
-      const scale = 1 + .16 * amounts[index]!
-      const cy = (row.top + row.bottom) / 2
-      row.group.setAttribute('transform', `translate(0 ${shifts[index]! + panY})`)
-      row.word.setAttribute('transform', `translate(${centerX} ${cy}) scale(${scale}) translate(${-centerX} ${-cy})`)
+      row.group.setAttribute('transform', `translate(0 ${panY})`)
       row.ink.setAttribute('opacity', String(colors[index]!))
     })
     if (moving) frame = requestAnimationFrame(animate)
@@ -93,10 +75,9 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
     let next = -1
     let nearest = Infinity
     rows.forEach((row, index) => {
-      const scale = 1 + .16 * amounts[index]!
-      const centerY = (row.top + row.bottom) / 2 + shifts[index]! + panY
-      const halfHeight = (row.bottom - row.top) * scale / 2
-      const halfWidth = (right - left) * scale / 2
+      const centerY = (row.top + row.bottom) / 2 + panY
+      const halfHeight = (row.bottom - row.top) / 2
+      const halfWidth = (right - left) / 2
       const centerX = (left + right) / 2
       const distance = Math.abs(point.y - centerY)
       if (Math.abs(point.x - centerX) <= halfWidth + 8 && distance <= halfHeight + 3 && distance < nearest) {
