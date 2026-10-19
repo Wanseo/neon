@@ -15,7 +15,7 @@ export function installCountryMap(poster: SVGSVGElement, rows: HoverRow[], motio
   panel.innerHTML = `<button class="map-close" type="button" aria-label="지도 닫기">×</button>
     <svg class="country-map" viewBox="0 0 600 600" role="img" aria-labelledby="map-title">
       <title id="map-title"></title><g class="country-outline"></g>
-      <g class="city-marker"><circle r="6" /></g>
+      <g class="city-marker"><rect x="-6" y="-6" width="12" height="12" /></g>
     </svg><div class="map-caption"><span class="map-country"></span><span class="map-city"></span></div>
     <a class="map-credit" href="https://www.geonames.org/" target="_blank" rel="noreferrer">GeoNames · Natural Earth</a>`
   document.querySelector('#app')!.append(panel)
