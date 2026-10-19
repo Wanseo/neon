@@ -44,17 +44,17 @@ svg, svg * {
 .map-open .city-poster { transform: translate3d(-25vw, 0, 0); }
 .country-panel {
   position: fixed;
-  top: 12vh;
+  top: 50%;
   right: 5vw;
   width: 45vw;
   max-width: 720px;
   color: #edf0c2;
   opacity: 0;
-  transform: translate3d(35px, 0, 0);
+  transform: translate3d(35px, -50%, 0);
   pointer-events: none;
   transition: opacity 450ms ease, transform 750ms cubic-bezier(.2,.75,.2,1);
 }
-.map-open .country-panel { opacity: 1; transform: translate3d(0,0,0); pointer-events: auto; }
+.map-open .country-panel { opacity: 1; transform: translate3d(0,-50%,0); pointer-events: auto; }
 .country-map { display: block; width: 100%; max-height: 66vh; overflow: visible; }
 .country-outline { fill: none; stroke: currentColor; stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; }
 .country-outline path { animation: trace-country 1100ms cubic-bezier(.25,.6,.25,1) both; }
@@ -69,7 +69,7 @@ svg, svg * {
 @keyframes trace-country { from { stroke-dasharray: 1; stroke-dashoffset: 1; } to { stroke-dasharray: 1; stroke-dashoffset: 0; } }
 @media (max-width: 650px) {
   .map-open .city-poster { transform: translate3d(-24vw, 0, 0); }
-  .country-panel { right: 0; width: 49vw; top: 24vh; }
+  .country-panel { right: 0; width: 49vw; }
   .map-caption { flex-direction: column; padding: 12px 8%; gap: 5px; }
   .map-country { align-self: flex-start; font-size: 8px; letter-spacing: .5px; }
   .map-city { font-size: 18px; }
