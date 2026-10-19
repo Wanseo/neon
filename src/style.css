@@ -64,15 +64,17 @@ svg, svg * {
 .map-close { position: absolute; top: -32px; right: 4%; width: 36px; height: 36px; border: 0; background: none; color: inherit; font-size: 30px; font-weight: 300; cursor: default; }
 .map-credit { display: block; padding: 8px 10%; color: inherit; font: 8px sans-serif; text-decoration: none; }
 .city-clock {
-  position: fixed;
-  top: 50%;
-  transform: translateY(-50%);
+  display: block;
+  text-align: center;
+  font-size: 47px;
+  line-height: 1;
   font-family: 'Poster Inter Tight', sans-serif;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   pointer-events: none;
 }
+.city-clock[hidden] { display: none; }
 .map-museum {
   display: block;
   margin: 6px 10% 12px;

@@ -23,7 +23,11 @@ export function installCountryMap(poster: SVGSVGElement, rows: HoverRow[], motio
   const clock = document.createElement('time')
   clock.className = 'city-clock'
   clock.hidden = true
-  document.querySelector('#app')!.append(clock)
+  const clockAnchor = document.createElementNS(ns, 'foreignObject')
+  clockAnchor.setAttribute('width', '300')
+  clockAnchor.setAttribute('height', '60')
+  clockAnchor.setAttribute('pointer-events', 'none')
+  clockAnchor.append(clock)
   document.querySelector('#app')!.append(panel)
   const outline = panel.querySelector<SVGGElement>('.country-outline')!
   const marker = panel.querySelector<SVGGElement>('.city-marker')!
@@ -50,8 +54,9 @@ export function installCountryMap(poster: SVGSVGElement, rows: HoverRow[], motio
     const left = right + 12
     panel.style.setProperty('--map-left', `${left}px`)
     panel.style.setProperty('--map-width', `${Math.max(0, Math.min(260, window.innerWidth - left - 12))}px`)
-    clock.style.right = `${window.innerWidth - bounds.left + 18}px`
-    clock.style.fontSize = `${poster.getBoundingClientRect().width / 1024 * 47}px`
+    const textBox = rows[index]!.text.getBBox()
+    clockAnchor.setAttribute('x', String(textBox.x + textBox.width / 2 - 150))
+    clockAnchor.setAttribute('y', String(rows[index]!.top - 60))
   }
   window.addEventListener('resize', () => {
     if (selected >= 0) positionPanel(selected)
@@ -90,6 +95,7 @@ export function installCountryMap(poster: SVGSVGElement, rows: HoverRow[], motio
     clockTimer = setInterval(updateClock, 1000)
     rows.forEach((item, i) => item.group.setAttribute('aria-pressed', String(i === index)))
     selected = index
+    rows[index]!.group.append(clockAnchor)
     positionPanel(index)
     panel.inert = false
     panel.setAttribute('aria-hidden', 'false')
