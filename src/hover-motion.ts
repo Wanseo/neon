@@ -10,6 +10,25 @@ export interface HoverRow {
 export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left: number, right: number) {
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
   const colors = rows.map(() => 0)
+  const drawnOpacity = rows.map(() => 0)
+  const layer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  rows.forEach(row => layer.append(row.group))
+  poster.append(layer)
+  let drawnPan = NaN
+  let geometry: { bounds: DOMRect; inverse: DOMMatrix; unitsPerPixel: number } | null = null
+  function readGeometry() {
+    if (geometry) return geometry
+    const matrix = poster.getScreenCTM()
+    if (!matrix) return null
+    const bounds = poster.getBoundingClientRect()
+    geometry = { bounds, inverse: matrix.inverse(), unitsPerPixel: poster.viewBox.baseVal.height / bounds.height }
+    return geometry
+  }
+  const invalidateGeometry = () => { geometry = null }
+  const resizeObserver = new ResizeObserver(invalidateGeometry)
+  resizeObserver.observe(poster)
+  window.addEventListener('resize', invalidateGeometry)
+  window.addEventListener('scroll', invalidateGeometry, { passive: true })
   let active = -1
   let selectionAnchor: { x: number; y: number } | null = null
   let panY = 0
@@ -36,22 +55,28 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
     })
     const viewBox = poster.viewBox.baseVal
     const targetY = scrollTarget ?? (active < 0 || reducedMotion.matches ? 0 : viewBox.y + viewBox.height / 2 - activeCenter)
-    // Let the cursor catch a stationary target: pause list travel while the
-    // user is moving, but keep highlight feedback immediate.
+    // Slow travel while aiming, without stop/start pauses during pointer movement.
     const aiming = scrollTarget === null && active >= 0 && time - lastMoveTime < 85
     const followPan = (value: number, target: number) => {
       if (Math.abs(target - value) <= .01) return target
       moving = true
-      if (aiming) return value
       if (reducedMotion.matches) return target
       const step = (target - value) * (1 - Math.exp(-dt / (scrollTarget === null ? 230 : 110)))
-      const maxStep = dt * .8
+      const maxStep = dt * (aiming ? .25 : .8)
       return value + Math.max(-maxStep, Math.min(maxStep, step))
     }
     panY = followPan(panY, targetY)
+    const renderedPan = Math.round(panY * 100) / 100
+    if (renderedPan !== drawnPan) {
+      layer.setAttribute('transform', `translate(0 ${renderedPan})`)
+      drawnPan = renderedPan
+    }
     rows.forEach((row, index) => {
-      row.group.setAttribute('transform', `translate(0 ${panY})`)
-      row.ink.setAttribute('opacity', String(colors[index]!))
+      const opacity = Math.round(colors[index]! * 1000) / 1000
+      if (opacity !== drawnOpacity[index]) {
+        row.ink.setAttribute('opacity', String(opacity))
+        drawnOpacity[index] = opacity
+      }
     })
     if (moving) frame = requestAnimationFrame(animate)
     else { frame = 0; lastTime = 0 }
@@ -64,10 +89,10 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
       lastMoveTime = performance.now()
       lastPointer = { x: event.clientX, y: event.clientY }
     }
-    const matrix = poster.getScreenCTM()
-    if (!matrix) return
-    const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse())
-    const bounds = poster.getBoundingClientRect()
+    const cached = readGeometry()
+    if (!cached) return
+    const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(cached.inverse)
+    const { bounds } = cached
     const outside = event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom
     if (outside) { reset(); return }
     const outsideColumn = point.x < left - 90 || point.x > right + 90
@@ -98,9 +123,10 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
   })
   window.addEventListener('wheel', event => {
     if (event.ctrlKey || event.metaKey || !event.deltaY) return
-    const bounds = poster.getBoundingClientRect()
+    const cached = readGeometry()
+    if (!cached) return
+    const { bounds, unitsPerPixel } = cached
     const viewBox = poster.viewBox.baseVal
-    const unitsPerPixel = viewBox.height / bounds.height
     const deltaPixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? bounds.height : 1)
     const center = viewBox.y + viewBox.height / 2
     const minimum = center - (rows[rows.length - 1]!.top + rows[rows.length - 1]!.bottom) / 2

@@ -15,20 +15,6 @@ title.id = 'poster-title'
 title.textContent = `도시: ${cities.map(row => row.city).join(', ')}`
 poster.append(title)
 const defs = document.createElementNS(svgNS, 'defs')
-// Lift ink brightness while keeping the original texture's tonal differences.
-const brighterInk = document.createElementNS(svgNS, 'filter')
-brighterInk.id = 'brighter-ink'
-brighterInk.setAttribute('color-interpolation-filters', 'sRGB')
-const transfer = document.createElementNS(svgNS, 'feComponentTransfer')
-for (const channel of ['R', 'G', 'B']) {
-  const component = document.createElementNS(svgNS, `feFunc${channel}`)
-  component.setAttribute('type', 'linear')
-  component.setAttribute('slope', '1')
-  component.setAttribute('intercept', '0.20')
-  transfer.append(component)
-}
-brighterInk.append(transfer)
-defs.append(brighterInk)
 const inkPattern = document.createElementNS(svgNS, 'pattern')
 inkPattern.id = 'stone-ink'
 inkPattern.setAttribute('patternUnits', 'userSpaceOnUse')
@@ -36,7 +22,6 @@ inkPattern.setAttribute('width', '512')
 inkPattern.setAttribute('height', '512')
 const inkImage = document.createElementNS(svgNS, 'image')
 inkImage.setAttribute('href', inkUrl)
-inkImage.setAttribute('filter', 'url(#brighter-ink)')
 inkImage.setAttribute('width', '512')
 inkImage.setAttribute('height', '512')
 inkPattern.append(inkImage)
@@ -53,6 +38,24 @@ await Promise.all([
   background.decode().catch(() => {}),
   inkAsset.decode().catch(() => {}),
 ])
+// Bake the fixed brightness lift once, instead of filtering the texture every frame.
+if (inkAsset.naturalWidth) {
+  const texture = document.createElement('canvas')
+  texture.width = texture.height = 512
+  const textureContext = texture.getContext('2d')!
+  textureContext.drawImage(inkAsset, 0, 0, 512, 512)
+  const pixels = textureContext.getImageData(0, 0, 512, 512)
+  for (let i = 0; i < pixels.data.length; i += 4) {
+    pixels.data[i] += 51
+    pixels.data[i + 1] += 51
+    pixels.data[i + 2] += 51
+  }
+  textureContext.putImageData(pixels, 0, 0)
+  const cachedTexture = new Image()
+  cachedTexture.src = texture.toDataURL()
+  await cachedTexture.decode()
+  inkImage.setAttribute('href', cachedTexture.src)
+}
 const context = document.createElement('canvas').getContext('2d')!
 const reference = alignmentReference
 context.font = `900 ${reference.size}px "Poster Inter Tight"`
