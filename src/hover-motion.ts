@@ -13,6 +13,8 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
   let active = -1
   let selectionAnchor: { x: number; y: number } | null = null
   let panY = 0
+  let scrollTarget: number | null = null
+  let lastWheelTime = -Infinity
   let frame = 0
   let lastTime = 0
   let lastMoveTime = -Infinity
@@ -33,15 +35,16 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
       colors[index] = follow(colors[index]!, active === index ? 1 : 0)
     })
     const viewBox = poster.viewBox.baseVal
-    const targetY = active < 0 || reducedMotion.matches ? 0 : viewBox.y + viewBox.height / 2 - activeCenter
+    const targetY = scrollTarget ?? (active < 0 || reducedMotion.matches ? 0 : viewBox.y + viewBox.height / 2 - activeCenter)
     // Let the cursor catch a stationary target: pause list travel while the
     // user is moving, but keep highlight feedback immediate.
-    const aiming = active >= 0 && time - lastMoveTime < 85
+    const aiming = scrollTarget === null && active >= 0 && time - lastMoveTime < 85
     const followPan = (value: number, target: number) => {
       if (Math.abs(target - value) <= .01) return target
       moving = true
       if (aiming) return value
-      const step = (target - value) * (1 - Math.exp(-dt / 230))
+      if (reducedMotion.matches) return target
+      const step = (target - value) * (1 - Math.exp(-dt / (scrollTarget === null ? 230 : 110)))
       const maxStep = dt * .8
       return value + Math.max(-maxStep, Math.min(maxStep, step))
     }
@@ -56,7 +59,7 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
   function update() { if (!frame) frame = requestAnimationFrame(animate) }
   function reset() { active = -1; selectionAnchor = null; lastPointer = null; lastMoveTime = -Infinity; update() }
   window.addEventListener('pointermove', event => {
-    if (event.pointerType === 'touch') return
+    if (event.pointerType === 'touch' || performance.now() - lastWheelTime < 160) return
     if (!lastPointer || Math.hypot(event.clientX - lastPointer.x, event.clientY - lastPointer.y) >= 1.5) {
       lastMoveTime = performance.now()
       lastPointer = { x: event.clientX, y: event.clientY }
@@ -86,12 +89,34 @@ export function installHoverMotion(poster: SVGSVGElement, rows: HoverRow[], left
       }
     })
     if (next < 0 && active >= 0) return
-    if (next !== active) {
+    if (next !== active || (next >= 0 && scrollTarget !== null)) {
+      scrollTarget = null
       selectionAnchor = next < 0 ? null : { x: event.clientX, y: event.clientY }
       active = next
       update()
     }
   })
+  window.addEventListener('wheel', event => {
+    if (event.ctrlKey || event.metaKey || !event.deltaY) return
+    const bounds = poster.getBoundingClientRect()
+    const viewBox = poster.viewBox.baseVal
+    const unitsPerPixel = viewBox.height / bounds.height
+    const deltaPixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? bounds.height : 1)
+    const center = viewBox.y + viewBox.height / 2
+    const minimum = center - (rows[rows.length - 1]!.top + rows[rows.length - 1]!.bottom) / 2
+    const maximum = center - (rows[0]!.top + rows[0]!.bottom) / 2
+    scrollTarget = Math.max(minimum, Math.min(maximum, (scrollTarget ?? panY) - deltaPixels * unitsPerPixel))
+    lastWheelTime = performance.now()
+    selectionAnchor = null
+    // Highlight the city passing through the center without cancelling manual scrolling.
+    let nearest = Infinity
+    rows.forEach((row, index) => {
+      const distance = Math.abs((row.top + row.bottom) / 2 + scrollTarget! - center)
+      if (distance < nearest) { nearest = distance; active = index }
+    })
+    event.preventDefault()
+    update()
+  }, { passive: false })
   window.addEventListener('pointerout', event => { if (!event.relatedTarget) reset() })
   window.addEventListener('pointercancel', reset)
   reducedMotion.addEventListener('change', update)
