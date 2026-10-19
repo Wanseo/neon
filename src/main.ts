@@ -57,6 +57,7 @@ if (inkAsset.naturalWidth) {
   cachedTexture.src = texture.toDataURL()
   await cachedTexture.decode()
   inkImage.setAttribute('href', cachedTexture.src)
+  document.documentElement.style.setProperty('--selected-ink-texture', `url("${cachedTexture.src}")`)
 }
 const context = document.createElement('canvas').getContext('2d')!
 const reference = alignmentReference
