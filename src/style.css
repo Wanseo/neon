@@ -63,7 +63,25 @@ svg, svg * {
 .map-city { font-size: clamp(12px, 1.4vw, 20px); }
 .map-close { position: absolute; top: -32px; right: 4%; width: 36px; height: 36px; border: 0; background: none; color: inherit; font-size: 30px; font-weight: 300; cursor: default; }
 .map-credit { display: block; padding: 8px 10%; color: inherit; font: 8px sans-serif; text-decoration: none; }
-.map-country, .map-city, .map-close, .map-credit {
+.city-clock {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: 'Poster Inter Tight', sans-serif;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.map-museum {
+  display: block;
+  margin: 6px 10% 12px;
+  font: 900 clamp(11px, 1.1vw, 16px)/1.3 'Poster Inter Tight', sans-serif;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.map-museum:hover { text-decoration: underline; text-decoration-color: #eeeee5; }
+.map-country, .map-city, .map-close, .map-credit, .map-museum, .city-clock {
   background-image: var(--selected-ink-texture);
   background-size: 512px 512px;
   background-clip: text;
