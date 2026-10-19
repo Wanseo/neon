@@ -16,7 +16,7 @@ html, body { margin: 0; min-height: 100%; background: #fff; }
 }
 svg {
   display: block;
-  width: min(calc(100vw - 48px), calc((100dvh - 48px) * 2 / 3));
+  width: min(calc(100vw - 48px), calc((100dvh - 48px) * var(--poster-ratio, .6666667)));
   height: auto;
   overflow: visible;
   font-family: 'Poster Inter Tight', sans-serif;

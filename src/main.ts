@@ -1,6 +1,6 @@
 import './style.css'
 import { cities, dates } from './poster-layout'
-import { alignCity } from './align-city'
+import { alignCity, fitCitySize } from './align-city'
 
 const svgNS = 'http://www.w3.org/2000/svg'
 const poster = document.createElementNS(svgNS, 'svg')
@@ -20,10 +20,23 @@ const referenceMetrics = context.measureText(reference.city)
 const left = reference.x - referenceMetrics.actualBoundingBoxLeft
 const right = reference.x + referenceMetrics.actualBoundingBoxRight
 
-for (const row of cities) {
+const family = '"Poster Inter Tight"'
+let previousBottom = 0
+const shifts: number[] = []
+for (const [index, row] of cities.entries()) {
+  context.font = `900 ${row.size}px ${family}`
+  const originalMetrics = context.measureText(row.city)
+  const originalTop = row.y - originalMetrics.actualBoundingBoxAscent
+  const size = row === reference ? row.size : fitCitySize(context, row.city, right - left, family)
+  const metrics = context.measureText(row.city)
+  // Keep original positions where possible, moving a row only to avoid overlap.
+  const top = index === 0 ? originalTop : Math.max(originalTop, previousBottom + 6)
+  const y = top + metrics.actualBoundingBoxAscent
+  shifts.push(top - originalTop)
+  previousBottom = y + metrics.actualBoundingBoxDescent
   const text = document.createElementNS(svgNS, 'text')
-  text.setAttribute('y', String(row.y))
-  text.setAttribute('font-size', String(row.size))
+  text.setAttribute('y', String(y))
+  text.setAttribute('font-size', String(size))
   text.setAttribute('fill', row.lime ? '#a8f000' : '#0b0b0a')
   if (row === reference) {
     text.setAttribute('x', String(row.x))
@@ -31,7 +44,7 @@ for (const row of cities) {
   } else {
     text.style.fontKerning = 'none'
     text.style.fontVariantLigatures = 'none'
-    context.font = `900 ${row.size}px "Poster Inter Tight"`
+    context.font = `900 ${size}px ${family}`
     for (const glyph of alignCity(context, row.city, left, right)) {
       const span = document.createElementNS(svgNS, 'tspan')
       span.setAttribute('x', String(glyph.x))
@@ -41,10 +54,15 @@ for (const row of cities) {
   }
   poster.append(text)
 }
-for (const row of dates) {
+const posterHeight = Math.max(1536, previousBottom + 26)
+poster.setAttribute('viewBox', `0 0 1024 ${posterHeight}`)
+poster.style.setProperty('--poster-ratio', String(1024 / posterHeight))
+for (const [index, row] of dates.entries()) {
+  const sideIndex = index % 13
+  const cityIndex = sideIndex < 2 ? 0 : sideIndex - 1
   const text = document.createElementNS(svgNS, 'text')
   text.setAttribute('x', String(row.x))
-  text.setAttribute('y', String(row.y))
+  text.setAttribute('y', String(row.y + shifts[cityIndex]!))
   text.setAttribute('font-size', String(row.size))
   text.setAttribute('fill', row.lime ? '#a8f000' : '#0b0b0a')
   text.textContent = row.text

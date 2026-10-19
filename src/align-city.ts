@@ -16,3 +16,15 @@ export function alignCity(context: CanvasRenderingContext2D, word: string, left:
     x: left - naturalLeft + glyph.start + tracking * index,
   }))
 }
+
+// Fit with font size first; alignCity only corrects subpixel measurement rounding.
+export function fitCitySize(context: CanvasRenderingContext2D, word: string, width: number, family: string) {
+  let size = 100
+  for (let iteration = 0; iteration < 5; iteration++) {
+    context.font = `900 ${size}px ${family}`
+    const metrics = context.measureText(word)
+    size *= width / (metrics.actualBoundingBoxLeft + metrics.actualBoundingBoxRight)
+  }
+  context.font = `900 ${size}px ${family}`
+  return size
+}
