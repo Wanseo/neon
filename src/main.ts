@@ -1,5 +1,5 @@
 import './style.css'
-import backgroundUrl from './assets/grass.jpg'
+import backgroundUrl from './assets/grass-enhanced.png'
 
 const background = new Image()
 background.src = backgroundUrl
