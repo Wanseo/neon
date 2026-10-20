@@ -9,6 +9,7 @@
 html, body { margin: 0; height: 100%; }
 html { background: #fff; }
 html.is-ready body { visibility: visible; }
+.grass-motion { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 body {
   height: 100dvh;
   overflow: hidden;
