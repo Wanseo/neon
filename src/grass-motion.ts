@@ -1,5 +1,5 @@
 // A spring field bends the photograph locally, retaining a soft trail after the brush.
-export function installGrassMotion(image: HTMLImageElement) {
+export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElement) {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
   const canvas = document.createElement('canvas')
   canvas.className = 'grass-motion'
@@ -23,16 +23,28 @@ export function installGrassMotion(image: HTMLImageElement) {
       precision highp float;
       uniform sampler2D photograph;
       uniform sampler2D field;
+      uniform sampler2D ground;
+      uniform sampler2D opening;
       uniform vec2 resolution;
       uniform vec2 viewport;
       uniform vec2 crop;
+      uniform vec2 groundCrop;
       void main() {
         vec2 screen = vec2(gl_FragCoord.x / resolution.x, 1.0 - gl_FragCoord.y / resolution.y);
         vec4 encoded = texture2D(field, screen) * 255.0;
         vec2 bend = (vec2(encoded.r * 256.0 + encoded.g, encoded.b * 256.0 + encoded.a) - 32768.0) / 32767.0;
-        vec2 displaced = screen - bend * 32.0 / viewport;
+        vec2 displaced = screen - bend * 64.0 / viewport;
         vec2 uv = (displaced - 0.5) * crop + 0.5;
-        gl_FragColor = vec4(texture2D(photograph, clamp(uv, 0.001, 0.999)).rgb, 1.0);
+        vec3 grass = texture2D(photograph, clamp(uv, 0.001, 0.999)).rgb;
+        vec2 groundUV = (screen - 0.5) * groundCrop + 0.5;
+        vec3 earth = texture2D(ground, groundUV).rgb;
+        float gap = texture2D(opening, screen).r;
+        // Uneven blade tips soften the boundary, rather than a round cutout.
+        float blades = sin(screen.x * viewport.x * 1.7 + sin(screen.y * viewport.y * .8) * 2.0)
+          * sin(screen.y * viewport.y * 1.1) * .08;
+        float exposed = smoothstep(.12 + blades, .42 + blades, gap);
+        earth *= .78 + .22 * smoothstep(.3, .8, gap);
+        gl_FragColor = vec4(mix(grass, earth, exposed), 1.0);
       }
     `))
     gl.linkProgram(program)
@@ -60,18 +72,24 @@ export function installGrassMotion(image: HTMLImageElement) {
   gl.uniform1i(gl.getUniformLocation(program, 'photograph'), 0)
   const fieldTexture = texture(1)
   gl.uniform1i(gl.getUniformLocation(program, 'field'), 1)
+  texture(2)
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, soil ?? image)
+  gl.uniform1i(gl.getUniformLocation(program, 'ground'), 2)
+  const openingTexture = texture(3)
+  gl.uniform1i(gl.getUniformLocation(program, 'opening'), 3)
   const columns = 144
   let rows = 64
   let width = 1, height = 1
   let offsets = new Float32Array(0), velocities = new Float32Array(0), pixels = new Uint8Array(0)
+  let openings = new Float32Array(0), openingPixels = new Uint8Array(0)
   let frame = 0, previousTime = 0
   let previousPointer: { x: number; y: number } | null = null
   let pending: { x: number; y: number }[] = []
   function draw() { gl!.drawArrays(gl!.TRIANGLES, 0, 6) }
   function upload() {
     for (let i = 0; i < columns * rows; i++) {
-      const x = Math.round(32768 + offsets[i * 2]! / 32 * 32767)
-      const y = Math.round(32768 + offsets[i * 2 + 1]! / 32 * 32767)
+      const x = Math.round(32768 + offsets[i * 2]! / 64 * 32767)
+      const y = Math.round(32768 + offsets[i * 2 + 1]! / 64 * 32767)
       pixels[i * 4] = x >> 8
       pixels[i * 4 + 1] = x & 255
       pixels[i * 4 + 2] = y >> 8
@@ -80,6 +98,13 @@ export function installGrassMotion(image: HTMLImageElement) {
     gl!.activeTexture(gl!.TEXTURE1)
     gl!.bindTexture(gl!.TEXTURE_2D, fieldTexture)
     gl!.texImage2D(gl!.TEXTURE_2D, 0, gl!.RGBA, columns, rows, 0, gl!.RGBA, gl!.UNSIGNED_BYTE, pixels)
+    for (let i = 0; i < openings.length; i++) {
+      openingPixels[i * 4] = soil ? Math.round(openings[i]! * 255) : 0
+      openingPixels[i * 4 + 3] = 255
+    }
+    gl!.activeTexture(gl!.TEXTURE3)
+    gl!.bindTexture(gl!.TEXTURE_2D, openingTexture)
+    gl!.texImage2D(gl!.TEXTURE_2D, 0, gl!.RGBA, columns, rows, 0, gl!.RGBA, gl!.UNSIGNED_BYTE, openingPixels)
     draw()
   }
   function brush(x: number, y: number, dx: number, dy: number) {
@@ -87,11 +112,11 @@ export function installGrassMotion(image: HTMLImageElement) {
     if (travel < .1) return
     const tx = dx / travel, ty = dy / travel
     const nx = -ty, ny = tx
-    const halfWidth = 42
-    const minX = Math.max(0, Math.floor((x - 62) / width * columns))
-    const maxX = Math.min(columns - 1, Math.ceil((x + 62) / width * columns))
-    const minY = Math.max(0, Math.floor((y - 62) / height * rows))
-    const maxY = Math.min(rows - 1, Math.ceil((y + 62) / height * rows))
+    const halfWidth = 72
+    const minX = Math.max(0, Math.floor((x - 92) / width * columns))
+    const maxX = Math.min(columns - 1, Math.ceil((x + 92) / width * columns))
+    const minY = Math.max(0, Math.floor((y - 92) / height * rows))
+    const maxY = Math.min(rows - 1, Math.ceil((y + 92) / height * rows))
     for (let j = minY; j <= maxY; j++) for (let i = minX; i <= maxX; i++) {
       const rx = (i + .5) / columns * width - x
       const ry = (j + .5) / rows * height - y
@@ -101,11 +126,20 @@ export function installGrassMotion(image: HTMLImageElement) {
       // Only the narrow swept track bends. The two sides fall in opposite
       // directions perpendicular to travel; nothing expands radially.
       const edge = Math.max(0, 1 - (across / halfWidth) ** 2) ** 2
-      const side = Math.tanh(across / 12)
+      const side = Math.tanh(across / 20)
       const weight = side * edge * Math.exp(-along * along / 100) * Math.min(travel / 6, 1)
       const index = (j * columns + i) * 2
-      velocities[index]! += nx * 65 * weight
-      velocities[index + 1]! += ny * 65 * weight
+      // Stable variation per tuft: both banks spread out, each at its own angle.
+      const seed = Math.sin(i * 127.1 + j * 311.7) * 43758.5453
+      const variation = seed - Math.floor(seed)
+      const angle = (variation - .5) * 1.25
+      const spreadX = nx * Math.cos(angle) - ny * Math.sin(angle)
+      const spreadY = nx * Math.sin(angle) + ny * Math.cos(angle)
+      const strength = 105 + variation * 65
+      velocities[index]! += spreadX * strength * weight
+      velocities[index + 1]! += spreadY * strength * weight
+      const exposure = Math.exp(-across * across / 650 - along * along / 140)
+      openings[j * columns + i] = Math.min(1, openings[j * columns + i]! + exposure * Math.min(travel / 5, 1))
     }
   }
   function animate(time: number) {
@@ -122,9 +156,14 @@ export function installGrassMotion(image: HTMLImageElement) {
     let moving = false
     for (let i = 0; i < offsets.length; i++) {
       velocities[i]! += (-offsets[i]! * 38 - velocities[i]! * 10) * dt
-      offsets[i] = Math.max(-12, Math.min(12, offsets[i]! + velocities[i]! * dt))
+      offsets[i] = Math.max(-28, Math.min(28, offsets[i]! + velocities[i]! * dt))
       if (Math.abs(offsets[i]!) > .12 || Math.abs(velocities[i]!) > .12) moving = true
       else offsets[i] = velocities[i] = 0
+    }
+    for (let i = 0; i < openings.length; i++) {
+      openings[i]! *= Math.exp(-dt * 1.35)
+      if (openings[i]! < .005) openings[i] = 0
+      else moving = true
     }
     upload()
     if (moving) frame = requestAnimationFrame(animate)
@@ -139,10 +178,15 @@ export function installGrassMotion(image: HTMLImageElement) {
     gl!.uniform2f(gl!.getUniformLocation(program, 'viewport'), width, height)
     const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight)
     gl!.uniform2f(gl!.getUniformLocation(program, 'crop'), width / (image.naturalWidth * scale), height / (image.naturalHeight * scale))
+    const groundImage = soil ?? image
+    const groundScale = Math.max(width / groundImage.naturalWidth, height / groundImage.naturalHeight)
+    gl!.uniform2f(gl!.getUniformLocation(program, 'groundCrop'), width / (groundImage.naturalWidth * groundScale), height / (groundImage.naturalHeight * groundScale))
     rows = Math.max(48, Math.min(260, Math.round(columns * height / width)))
     offsets = new Float32Array(columns * rows * 2)
     velocities = new Float32Array(offsets.length)
     pixels = new Uint8Array(columns * rows * 4)
+    openings = new Float32Array(columns * rows)
+    openingPixels = new Uint8Array(columns * rows * 4)
     previousPointer = null; pending = []
     upload()
   }
