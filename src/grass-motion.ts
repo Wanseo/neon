@@ -102,6 +102,47 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
   const windUniform = gl.getUniformLocation(program, 'windTime')
   let previousPointer: { x: number; y: number } | null = null
   let pending: { x: number; y: number }[] = []
+  const trail: { x1: number; y1: number; x2: number; y2: number; length: number }[] = []
+  let trailLength = 0
+  let lastTrailTime = -Infinity
+  // Bound the visible soil by distance, so fast movement cannot leave a long
+  // strip of exposed ground during the same recovery interval.
+  function addTrail(x1: number, y1: number, x2: number, y2: number) {
+    const length = Math.hypot(x2 - x1, y2 - y1)
+    if (length < .1) return
+    trail.push({ x1, y1, x2, y2, length })
+    trailLength += length
+    while (trailLength > 64 && trail.length) {
+      const first = trail[0]!
+      const excess = trailLength - 64
+      if (first.length <= excess) { trailLength -= first.length; trail.shift() }
+      else {
+        const fraction = excess / first.length
+        first.x1 += (first.x2 - first.x1) * fraction
+        first.y1 += (first.y2 - first.y1) * fraction
+        first.length -= excess
+        trailLength = 64
+      }
+    }
+  }
+  function paintOpening() {
+    openings.fill(0)
+    for (const segment of trail) {
+      const dx = segment.x2 - segment.x1, dy = segment.y2 - segment.y1
+      const minX = Math.max(0, Math.floor((Math.min(segment.x1, segment.x2) - 10) / width * columns))
+      const maxX = Math.min(columns - 1, Math.ceil((Math.max(segment.x1, segment.x2) + 10) / width * columns))
+      const minY = Math.max(0, Math.floor((Math.min(segment.y1, segment.y2) - 10) / height * rows))
+      const maxY = Math.min(rows - 1, Math.ceil((Math.max(segment.y1, segment.y2) + 10) / height * rows))
+      for (let j = minY; j <= maxY; j++) for (let i = minX; i <= maxX; i++) {
+        const px = (i + .5) / columns * width - segment.x1
+        const py = (j + .5) / rows * height - segment.y1
+        const t = Math.max(0, Math.min(1, (px * dx + py * dy) / (segment.length * segment.length)))
+        const distanceSquared = (px - t * dx) ** 2 + (py - t * dy) ** 2
+        const index = j * columns + i
+        openings[index] = Math.max(openings[index]!, Math.exp(-distanceSquared / 32))
+      }
+    }
+  }
   function draw() {
     gl!.uniform1f(windUniform, windTime)
     gl!.drawArrays(gl!.TRIANGLES, 0, 6)
@@ -158,9 +199,6 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
       const strength = 70 + variation * 55
       velocities[index]! += spreadX * strength * weight
       velocities[index + 1]! += spreadY * strength * weight
-      // Keep exposed soil to a cursor-sized slit; repeated passes never widen it.
-      const exposure = Math.exp(-across * across / 50 - along * along / 100)
-      openings[j * columns + i] = Math.max(openings[j * columns + i]!, exposure)
     }
   }
   function animate(time: number) {
@@ -172,14 +210,21 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
       frame = requestAnimationFrame(animate)
       return
     }
+    let changedTrail = false
+    if (pending.length && time - lastTrailTime > 200) { trail.length = 0; trailLength = 0 }
     for (const point of pending) {
       const start = previousPointer ?? point
       const dx = point.x - start.x, dy = point.y - start.y
+      if (Math.hypot(dx, dy) >= .1) {
+        addTrail(start.x, start.y, point.x, point.y)
+        changedTrail = true
+      }
       const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 6))
       for (let i = 0; i < steps; i++) brush(start.x + dx * (i + .5) / steps, start.y + dy * (i + .5) / steps, dx / steps, dy / steps)
       previousPointer = point
     }
     pending = []
+    if (changedTrail) { paintOpening(); lastTrailTime = time }
     let moving = false
     for (let i = 0; i < offsets.length; i++) {
       velocities[i]! += (-offsets[i]! * 38 - velocities[i]! * 10) * dt
@@ -216,6 +261,7 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
     openings = new Float32Array(columns * rows)
     openingPixels = new Uint8Array(columns * rows * 4)
     previousPointer = null; pending = []
+    trail.length = 0; trailLength = 0
     upload()
   }
   window.addEventListener('pointermove', event => {
