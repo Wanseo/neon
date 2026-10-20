@@ -29,6 +29,7 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
       uniform vec2 viewport;
       uniform vec2 crop;
       uniform vec2 groundCrop;
+      uniform float windTime;
       void main() {
         vec2 screen = vec2(gl_FragCoord.x / resolution.x, 1.0 - gl_FragCoord.y / resolution.y);
         vec4 encoded = texture2D(field, screen) * 255.0;
@@ -38,7 +39,15 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
         float tuft = sin(world.x * .07 + sin(world.y * .017) * 2.0) * sin(world.y * .06);
         float angle = tuft * .12;
         bend = mat2(cos(angle), sin(angle), -sin(angle), cos(angle)) * bend * (1.0 + tuft * .1);
-        vec2 displaced = screen - bend * 64.0 / viewport;
+        // A breeze travels diagonally across the field; individual tufts lag
+        // behind it slightly instead of the entire photograph moving together.
+        float phase = world.x * .007 - world.y * .004;
+        float gust = .65 + .35 * sin(phase * .43 - windTime * .38);
+        float sway = sin(phase - windTime * 1.05)
+          + .3 * sin(world.x * .019 + world.y * .011 - windTime * 1.6);
+        float tips = .65 + .35 * sin(world.x * .038 + sin(world.y * .023));
+        vec2 wind = vec2(1.0, -.42) * sway * gust * tips * 2.7;
+        vec2 displaced = screen - (bend * 64.0 + wind) / viewport;
         vec2 uv = (displaced - 0.5) * crop + 0.5;
         vec3 grass = texture2D(photograph, clamp(uv, 0.001, 0.999)).rgb;
         vec2 groundUV = (screen - 0.5) * groundCrop + 0.5;
@@ -88,9 +97,15 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
   let offsets = new Float32Array(0), velocities = new Float32Array(0), pixels = new Uint8Array(0)
   let openings = new Float32Array(0), openingPixels = new Uint8Array(0)
   let frame = 0, previousTime = 0
+  let windTime = 0
+  let fieldAwake = false
+  const windUniform = gl.getUniformLocation(program, 'windTime')
   let previousPointer: { x: number; y: number } | null = null
   let pending: { x: number; y: number }[] = []
-  function draw() { gl!.drawArrays(gl!.TRIANGLES, 0, 6) }
+  function draw() {
+    gl!.uniform1f(windUniform, windTime)
+    gl!.drawArrays(gl!.TRIANGLES, 0, 6)
+  }
   function upload() {
     for (let i = 0; i < columns * rows; i++) {
       const x = Math.round(32768 + offsets[i * 2]! / 64 * 32767)
@@ -151,6 +166,12 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
   function animate(time: number) {
     const dt = previousTime ? Math.min((time - previousTime) / 1000, .032) : 1 / 60
     previousTime = time
+    windTime += dt
+    if (!fieldAwake && pending.length === 0) {
+      draw()
+      frame = requestAnimationFrame(animate)
+      return
+    }
     for (const point of pending) {
       const start = previousPointer ?? point
       const dx = point.x - start.x, dy = point.y - start.y
@@ -172,8 +193,8 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
       else moving = true
     }
     upload()
-    if (moving) frame = requestAnimationFrame(animate)
-    else { frame = 0; previousTime = 0 }
+    fieldAwake = moving
+    frame = requestAnimationFrame(animate)
   }
   function resize() {
     width = window.innerWidth; height = window.innerHeight
@@ -207,6 +228,15 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
   window.addEventListener('resize', resize)
   canvas.addEventListener('webglcontextlost', event => { event.preventDefault(); cancelAnimationFrame(frame); canvas.remove() })
   window.addEventListener('pagehide', () => { cancelAnimationFrame(frame); frame = 0; previousTime = 0; previousPointer = null })
+  const resume = () => {
+    if (!document.hidden && !frame && canvas.isConnected) frame = requestAnimationFrame(animate)
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { cancelAnimationFrame(frame); frame = 0; previousTime = 0; pending = []; previousPointer = null }
+    else resume()
+  })
+  window.addEventListener('pageshow', resume)
   resize()
   document.querySelector('#app')!.append(canvas)
+  resume()
 }
