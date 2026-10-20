@@ -33,6 +33,11 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
         vec2 screen = vec2(gl_FragCoord.x / resolution.x, 1.0 - gl_FragCoord.y / resolution.y);
         vec4 encoded = texture2D(field, screen) * 255.0;
         vec2 bend = (vec2(encoded.r * 256.0 + encoded.g, encoded.b * 256.0 + encoded.a) - 32768.0) / 32767.0;
+        vec2 world = screen * viewport;
+        // Fine tufts lean at different angles along the two banks of the track.
+        float tuft = sin(world.x * .07 + sin(world.y * .017) * 2.0) * sin(world.y * .06);
+        float angle = tuft * .12;
+        bend = mat2(cos(angle), sin(angle), -sin(angle), cos(angle)) * bend * (1.0 + tuft * .1);
         vec2 displaced = screen - bend * 64.0 / viewport;
         vec2 uv = (displaced - 0.5) * crop + 0.5;
         vec3 grass = texture2D(photograph, clamp(uv, 0.001, 0.999)).rgb;
@@ -42,7 +47,7 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
         // Uneven blade tips soften the boundary, rather than a round cutout.
         float blades = sin(screen.x * viewport.x * 1.7 + sin(screen.y * viewport.y * .8) * 2.0)
           * sin(screen.y * viewport.y * 1.1) * .08;
-        float exposed = smoothstep(.12 + blades, .42 + blades, gap);
+        float exposed = smoothstep(.28 + blades, .62 + blades, gap);
         earth *= .78 + .22 * smoothstep(.3, .8, gap);
         gl_FragColor = vec4(mix(grass, earth, exposed), 1.0);
       }
@@ -77,7 +82,7 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
   gl.uniform1i(gl.getUniformLocation(program, 'ground'), 2)
   const openingTexture = texture(3)
   gl.uniform1i(gl.getUniformLocation(program, 'opening'), 3)
-  const columns = 144
+  let columns = 144
   let rows = 64
   let width = 1, height = 1
   let offsets = new Float32Array(0), velocities = new Float32Array(0), pixels = new Uint8Array(0)
@@ -112,11 +117,11 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
     if (travel < .1) return
     const tx = dx / travel, ty = dy / travel
     const nx = -ty, ny = tx
-    const halfWidth = 72
-    const minX = Math.max(0, Math.floor((x - 92) / width * columns))
-    const maxX = Math.min(columns - 1, Math.ceil((x + 92) / width * columns))
-    const minY = Math.max(0, Math.floor((y - 92) / height * rows))
-    const maxY = Math.min(rows - 1, Math.ceil((y + 92) / height * rows))
+    const halfWidth = 36
+    const minX = Math.max(0, Math.floor((x - 56) / width * columns))
+    const maxX = Math.min(columns - 1, Math.ceil((x + 56) / width * columns))
+    const minY = Math.max(0, Math.floor((y - 56) / height * rows))
+    const maxY = Math.min(rows - 1, Math.ceil((y + 56) / height * rows))
     for (let j = minY; j <= maxY; j++) for (let i = minX; i <= maxX; i++) {
       const rx = (i + .5) / columns * width - x
       const ry = (j + .5) / rows * height - y
@@ -126,7 +131,7 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
       // Only the narrow swept track bends. The two sides fall in opposite
       // directions perpendicular to travel; nothing expands radially.
       const edge = Math.max(0, 1 - (across / halfWidth) ** 2) ** 2
-      const side = Math.tanh(across / 20)
+      const side = Math.tanh(across / 10)
       const weight = side * edge * Math.exp(-along * along / 100) * Math.min(travel / 6, 1)
       const index = (j * columns + i) * 2
       // Stable variation per tuft: both banks spread out, each at its own angle.
@@ -135,11 +140,12 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
       const angle = (variation - .5) * 1.25
       const spreadX = nx * Math.cos(angle) - ny * Math.sin(angle)
       const spreadY = nx * Math.sin(angle) + ny * Math.cos(angle)
-      const strength = 105 + variation * 65
+      const strength = 70 + variation * 55
       velocities[index]! += spreadX * strength * weight
       velocities[index + 1]! += spreadY * strength * weight
-      const exposure = Math.exp(-across * across / 650 - along * along / 140)
-      openings[j * columns + i] = Math.min(1, openings[j * columns + i]! + exposure * Math.min(travel / 5, 1))
+      // Keep exposed soil to a cursor-sized slit; repeated passes never widen it.
+      const exposure = Math.exp(-across * across / 50 - along * along / 100)
+      openings[j * columns + i] = Math.max(openings[j * columns + i]!, exposure)
     }
   }
   function animate(time: number) {
@@ -156,7 +162,7 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
     let moving = false
     for (let i = 0; i < offsets.length; i++) {
       velocities[i]! += (-offsets[i]! * 38 - velocities[i]! * 10) * dt
-      offsets[i] = Math.max(-28, Math.min(28, offsets[i]! + velocities[i]! * dt))
+      offsets[i] = Math.max(-14, Math.min(14, offsets[i]! + velocities[i]! * dt))
       if (Math.abs(offsets[i]!) > .12 || Math.abs(velocities[i]!) > .12) moving = true
       else offsets[i] = velocities[i] = 0
     }
@@ -181,7 +187,8 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
     const groundImage = soil ?? image
     const groundScale = Math.max(width / groundImage.naturalWidth, height / groundImage.naturalHeight)
     gl!.uniform2f(gl!.getUniformLocation(program, 'groundCrop'), width / (groundImage.naturalWidth * groundScale), height / (groundImage.naturalHeight * groundScale))
-    rows = Math.max(48, Math.min(260, Math.round(columns * height / width)))
+    columns = Math.max(96, Math.min(384, Math.ceil(width / 5)))
+    rows = Math.max(64, Math.min(512, Math.ceil(height / 5)))
     offsets = new Float32Array(columns * rows * 2)
     velocities = new Float32Array(offsets.length)
     pixels = new Uint8Array(columns * rows * 4)
