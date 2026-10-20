@@ -20,7 +20,7 @@ export function installGrassMotion(image: HTMLImageElement) {
       void main() { gl_Position = vec4(position, 0.0, 1.0); }
     `))
     gl.attachShader(program, shader(gl.FRAGMENT_SHADER, `
-      precision mediump float;
+      precision highp float;
       uniform sampler2D photograph;
       uniform sampler2D field;
       uniform vec2 resolution;
@@ -28,8 +28,9 @@ export function installGrassMotion(image: HTMLImageElement) {
       uniform vec2 crop;
       void main() {
         vec2 screen = vec2(gl_FragCoord.x / resolution.x, 1.0 - gl_FragCoord.y / resolution.y);
-        vec2 bend = (texture2D(field, screen).rg * 255.0 - 128.0) / 127.0;
-        vec2 displaced = screen - bend * 52.0 / viewport;
+        vec4 encoded = texture2D(field, screen) * 255.0;
+        vec2 bend = (vec2(encoded.r * 256.0 + encoded.g, encoded.b * 256.0 + encoded.a) - 32768.0) / 32767.0;
+        vec2 displaced = screen - bend * 32.0 / viewport;
         vec2 uv = (displaced - 0.5) * crop + 0.5;
         gl_FragColor = vec4(texture2D(photograph, clamp(uv, 0.001, 0.999)).rgb, 1.0);
       }
@@ -59,7 +60,7 @@ export function installGrassMotion(image: HTMLImageElement) {
   gl.uniform1i(gl.getUniformLocation(program, 'photograph'), 0)
   const fieldTexture = texture(1)
   gl.uniform1i(gl.getUniformLocation(program, 'field'), 1)
-  const columns = 96
+  const columns = 144
   let rows = 64
   let width = 1, height = 1
   let offsets = new Float32Array(0), velocities = new Float32Array(0), pixels = new Uint8Array(0)
@@ -69,10 +70,12 @@ export function installGrassMotion(image: HTMLImageElement) {
   function draw() { gl!.drawArrays(gl!.TRIANGLES, 0, 6) }
   function upload() {
     for (let i = 0; i < columns * rows; i++) {
-      pixels[i * 4] = Math.round(128 + offsets[i * 2]! / 52 * 127)
-      pixels[i * 4 + 1] = Math.round(128 + offsets[i * 2 + 1]! / 52 * 127)
-      pixels[i * 4 + 2] = 0
-      pixels[i * 4 + 3] = 255
+      const x = Math.round(32768 + offsets[i * 2]! / 32 * 32767)
+      const y = Math.round(32768 + offsets[i * 2 + 1]! / 32 * 32767)
+      pixels[i * 4] = x >> 8
+      pixels[i * 4 + 1] = x & 255
+      pixels[i * 4 + 2] = y >> 8
+      pixels[i * 4 + 3] = y & 255
     }
     gl!.activeTexture(gl!.TEXTURE1)
     gl!.bindTexture(gl!.TEXTURE_2D, fieldTexture)
@@ -80,17 +83,29 @@ export function installGrassMotion(image: HTMLImageElement) {
     draw()
   }
   function brush(x: number, y: number, dx: number, dy: number) {
-    const radius = Math.min(145, Math.max(85, width * .11))
-    for (let j = 0; j < rows; j++) for (let i = 0; i < columns; i++) {
+    const travel = Math.hypot(dx, dy)
+    if (travel < .1) return
+    const tx = dx / travel, ty = dy / travel
+    const nx = -ty, ny = tx
+    const halfWidth = 42
+    const minX = Math.max(0, Math.floor((x - 62) / width * columns))
+    const maxX = Math.min(columns - 1, Math.ceil((x + 62) / width * columns))
+    const minY = Math.max(0, Math.floor((y - 62) / height * rows))
+    const maxY = Math.min(rows - 1, Math.ceil((y + 62) / height * rows))
+    for (let j = minY; j <= maxY; j++) for (let i = minX; i <= maxX; i++) {
       const rx = (i + .5) / columns * width - x
       const ry = (j + .5) / rows * height - y
-      const distance = Math.hypot(rx, ry)
-      if (distance >= radius) continue
-      const weight = (1 - distance / radius) ** 2
+      const across = rx * nx + ry * ny
+      const along = rx * tx + ry * ty
+      if (Math.abs(across) >= halfWidth || Math.abs(along) >= 20) continue
+      // Only the narrow swept track bends. The two sides fall in opposite
+      // directions perpendicular to travel; nothing expands radially.
+      const edge = Math.max(0, 1 - (across / halfWidth) ** 2) ** 2
+      const side = Math.tanh(across / 12)
+      const weight = side * edge * Math.exp(-along * along / 100) * Math.min(travel / 6, 1)
       const index = (j * columns + i) * 2
-      // Push blades outwards and carry them in the direction of the hand.
-      velocities[index]! += (rx / Math.max(distance, 12) * 58 + dx * 8) * weight
-      velocities[index + 1]! += (ry / Math.max(distance, 12) * 58 + dy * 8) * weight
+      velocities[index]! += nx * 65 * weight
+      velocities[index + 1]! += ny * 65 * weight
     }
   }
   function animate(time: number) {
@@ -99,15 +114,15 @@ export function installGrassMotion(image: HTMLImageElement) {
     for (const point of pending) {
       const start = previousPointer ?? point
       const dx = point.x - start.x, dy = point.y - start.y
-      const steps = Math.max(1, Math.min(24, Math.ceil(Math.hypot(dx, dy) / 12)))
-      for (let i = 1; i <= steps; i++) brush(start.x + dx * i / steps, start.y + dy * i / steps, dx / steps, dy / steps)
+      const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 6))
+      for (let i = 0; i < steps; i++) brush(start.x + dx * (i + .5) / steps, start.y + dy * (i + .5) / steps, dx / steps, dy / steps)
       previousPointer = point
     }
     pending = []
     let moving = false
     for (let i = 0; i < offsets.length; i++) {
       velocities[i]! += (-offsets[i]! * 38 - velocities[i]! * 10) * dt
-      offsets[i] = Math.max(-48, Math.min(48, offsets[i]! + velocities[i]! * dt))
+      offsets[i] = Math.max(-12, Math.min(12, offsets[i]! + velocities[i]! * dt))
       if (Math.abs(offsets[i]!) > .12 || Math.abs(velocities[i]!) > .12) moving = true
       else offsets[i] = velocities[i] = 0
     }
@@ -124,7 +139,7 @@ export function installGrassMotion(image: HTMLImageElement) {
     gl!.uniform2f(gl!.getUniformLocation(program, 'viewport'), width, height)
     const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight)
     gl!.uniform2f(gl!.getUniformLocation(program, 'crop'), width / (image.naturalWidth * scale), height / (image.naturalHeight * scale))
-    rows = Math.max(32, Math.min(160, Math.round(columns * height / width)))
+    rows = Math.max(48, Math.min(260, Math.round(columns * height / width)))
     offsets = new Float32Array(columns * rows * 2)
     velocities = new Float32Array(offsets.length)
     pixels = new Uint8Array(columns * rows * 4)
