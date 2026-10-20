@@ -32,7 +32,6 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
       uniform vec2 crop;
       uniform vec2 groundCrop;
       uniform float windTime;
-      uniform vec3 aperture;
       void main() {
         vec2 screen = vec2(gl_FragCoord.x / resolution.x, 1.0 - gl_FragCoord.y / resolution.y);
         vec4 encoded = texture2D(field, screen) * 255.0;
@@ -56,12 +55,8 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
         grass = clamp(grass * 1.3 - nearby * .3, 0.0, 1.0);
         vec2 groundUV = (screen - 0.5) * groundCrop + 0.5;
         vec3 earth = texture2D(ground, groundUV).rgb;
-        vec2 local = world - aperture.xy;
-        float extent = max(aperture.z, .001);
-        float along = abs(local.y) / (27.0 * extent);
-        float halfWidth = 9.0 * extent * pow(max(0.0, 1.0 - along), .85);
-        float exposed = smoothstep(-.6, .6, halfWidth - abs(local.x))
-          * (1.0 - step(1.0, along)) * step(.01, aperture.z);
+        float gap = texture2D(opening, screen).r;
+        float exposed = smoothstep(.42, .58, gap);
         earth *= .88;
         gl_FragColor = vec4(mix(grass, earth, exposed), 1.0);
       }
@@ -109,21 +104,53 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
   let previousPointer: { x: number; y: number } | null = null
   let pending: { x: number; y: number }[] = []
   let lastTrailTime = -Infinity
-  let apertureX = 0, apertureY = 0, apertureAmount = 0
-  const apertureUniform = gl.getUniformLocation(program, 'aperture')
+  let apertureAmount = 0
+  const path: { x: number; y: number }[] = []
+  const maxTrailLength = 150
+  function addPathPoint(x: number, y: number) {
+    path.push({ x, y })
+    let distance = 0
+    for (let i = path.length - 1; i > 0; i--) {
+      const a = path[i - 1]!, b = path[i]!
+      const length = Math.hypot(b.x - a.x, b.y - a.y)
+      if (distance + length > maxTrailLength) {
+        const fraction = (maxTrailLength - distance) / length
+        a.x = b.x + (a.x - b.x) * fraction
+        a.y = b.y + (a.y - b.y) * fraction
+        path.splice(0, i - 1)
+        break
+      }
+      distance += length
+    }
+  }
   function paintOpening() {
     openings.fill(0)
     if (apertureAmount <= .01) return
-    const halfHeight = 27 * apertureAmount
-    const minX = Math.max(0, Math.floor((apertureX - 11) / width * columns))
-    const maxX = Math.min(columns - 1, Math.ceil((apertureX + 11) / width * columns))
-    const minY = Math.max(0, Math.floor((apertureY - halfHeight) / height * rows))
-    const maxY = Math.min(rows - 1, Math.ceil((apertureY + halfHeight) / height * rows))
-    for (let j = minY; j <= maxY; j++) for (let i = minX; i <= maxX; i++) {
-      const across = Math.abs((i + .5) / columns * width - apertureX)
-      const along = Math.abs((j + .5) / rows * height - apertureY) / halfHeight
-      const halfWidth = 9 * apertureAmount * Math.max(0, 1 - along) ** .85
-      openings[j * columns + i] = along < 1 ? Math.max(0, Math.min(1, (halfWidth - across) / 1.2 + .5)) : 0
+    const lengths = path.slice(1).map((point, i) => Math.hypot(point.x - path[i]!.x, point.y - path[i]!.y))
+    const total = lengths.reduce((sum, length) => sum + length, 0)
+    if (total < .1) return
+    let travelled = 0
+    for (let segment = 1; segment < path.length; segment++) {
+      const a = path[segment - 1]!, b = path[segment]!
+      const dx = b.x - a.x, dy = b.y - a.y
+      const length = lengths[segment - 1]!
+      if (length < .01) continue
+      const minX = Math.max(0, Math.floor((Math.min(a.x, b.x) - 11) / width * columns))
+      const maxX = Math.min(columns - 1, Math.ceil((Math.max(a.x, b.x) + 11) / width * columns))
+      const minY = Math.max(0, Math.floor((Math.min(a.y, b.y) - 11) / height * rows))
+      const maxY = Math.min(rows - 1, Math.ceil((Math.max(a.y, b.y) + 11) / height * rows))
+      for (let j = minY; j <= maxY; j++) for (let i = minX; i <= maxX; i++) {
+        const px = (i + .5) / columns * width - a.x
+        const py = (j + .5) / rows * height - a.y
+        const t = Math.max(0, Math.min(1, (px * dx + py * dy) / (length * length)))
+        const progress = (travelled + t * length) / total
+        const taper = Math.min(1, progress * 2.4) * Math.min(1, (1 - progress) * 12)
+        const halfWidth = 9 * apertureAmount * taper ** .75
+        const distance = Math.hypot(px - t * dx, py - t * dy)
+        const index = j * columns + i
+        openings[index] = Math.max(openings[index]!, Math.max(0, Math.min(1, (halfWidth - distance) / 1.5 + .5)))
+      }
+      travelled += length
     }
   }
   function draw() {
@@ -132,7 +159,6 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
     gl!.enableVertexAttribArray(position)
     gl!.vertexAttribPointer(position, 2, gl!.FLOAT, false, 0, 0)
     gl!.uniform1f(windUniform, windTime)
-    gl!.uniform3f(apertureUniform, apertureX, apertureY, soil ? apertureAmount : 0)
     gl!.drawArrays(gl!.TRIANGLES, 0, 6)
     blades.draw(windTime)
     gl!.useProgram(program)
@@ -201,15 +227,19 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
       return
     }
     let changedTrail = false
+    if (pending.length && time - lastTrailTime > 650) path.length = 0
     for (const point of pending) {
       const start = previousPointer ?? point
       const dx = point.x - start.x, dy = point.y - start.y
       if (Math.hypot(dx, dy) >= .1) {
-        apertureX = point.x; apertureY = point.y
+        if (!path.length) addPathPoint(start.x, start.y)
         changedTrail = true
       }
       const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 6))
-      for (let i = 0; i < steps; i++) brush(start.x + dx * (i + .5) / steps, start.y + dy * (i + .5) / steps, dx / steps, dy / steps)
+      for (let i = 0; i < steps; i++) {
+        brush(start.x + dx * (i + .5) / steps, start.y + dy * (i + .5) / steps, dx / steps, dy / steps)
+        if (Math.hypot(dx, dy) >= .1) addPathPoint(start.x + dx * (i + 1) / steps, start.y + dy * (i + 1) / steps)
+      }
       previousPointer = point
     }
     pending = []
@@ -250,7 +280,7 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
     openings = new Float32Array(columns * rows)
     openingPixels = new Uint8Array(columns * rows * 4)
     previousPointer = null; pending = []
-    apertureAmount = 0; lastTrailTime = -Infinity
+    apertureAmount = 0; lastTrailTime = -Infinity; path.length = 0
     upload()
   }
   window.addEventListener('pointermove', event => {
