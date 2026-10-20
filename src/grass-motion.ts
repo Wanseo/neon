@@ -1,4 +1,6 @@
-// A spring field bends the photograph locally, retaining a soft trail after the brush.
+import { createGrassBlades } from './grass-blades'
+
+// A spring field parts the grass; individual blades flex in the breeze.
 export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElement) {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
   const canvas = document.createElement('canvas')
@@ -39,15 +41,7 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
         float tuft = sin(world.x * .07 + sin(world.y * .017) * 2.0) * sin(world.y * .06);
         float angle = tuft * .12;
         bend = mat2(cos(angle), sin(angle), -sin(angle), cos(angle)) * bend * (1.0 + tuft * .1);
-        // A breeze travels diagonally across the field; individual tufts lag
-        // behind it slightly instead of the entire photograph moving together.
-        float phase = world.x * .007 - world.y * .004;
-        float gust = .65 + .35 * sin(phase * .43 - windTime * .38);
-        float sway = sin(phase - windTime * 1.05)
-          + .3 * sin(world.x * .019 + world.y * .011 - windTime * 1.6);
-        float tips = .65 + .35 * sin(world.x * .038 + sin(world.y * .023));
-        vec2 wind = vec2(1.0, -.42) * sway * gust * tips * 2.7;
-        vec2 displaced = screen - (bend * 64.0 + wind) / viewport;
+        vec2 displaced = screen - bend * 64.0 / viewport;
         vec2 uv = (displaced - 0.5) * crop + 0.5;
         vec3 grass = texture2D(photograph, clamp(uv, 0.001, 0.999)).rgb;
         vec2 groundUV = (screen - 0.5) * groundCrop + 0.5;
@@ -100,6 +94,7 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
   let windTime = 0
   let fieldAwake = false
   const windUniform = gl.getUniformLocation(program, 'windTime')
+  const blades = createGrassBlades(gl)
   let previousPointer: { x: number; y: number } | null = null
   let pending: { x: number; y: number }[] = []
   const trail: { x1: number; y1: number; x2: number; y2: number; length: number }[] = []
@@ -143,8 +138,14 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
     }
   }
   function draw() {
+    gl!.useProgram(program)
+    gl!.bindBuffer(gl!.ARRAY_BUFFER, buffer)
+    gl!.enableVertexAttribArray(position)
+    gl!.vertexAttribPointer(position, 2, gl!.FLOAT, false, 0, 0)
     gl!.uniform1f(windUniform, windTime)
     gl!.drawArrays(gl!.TRIANGLES, 0, 6)
+    blades.draw(windTime)
+    gl!.useProgram(program)
   }
   function upload() {
     for (let i = 0; i < columns * rows; i++) {
@@ -247,6 +248,7 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
     gl!.uniform2f(gl!.getUniformLocation(program, 'viewport'), width, height)
     const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight)
     gl!.uniform2f(gl!.getUniformLocation(program, 'crop'), width / (image.naturalWidth * scale), height / (image.naturalHeight * scale))
+    blades.resize(width, height, width / (image.naturalWidth * scale), height / (image.naturalHeight * scale))
     const groundImage = soil ?? image
     const groundScale = Math.max(width / groundImage.naturalWidth, height / groundImage.naturalHeight)
     gl!.uniform2f(gl!.getUniformLocation(program, 'groundCrop'), width / (groundImage.naturalWidth * groundScale), height / (groundImage.naturalHeight * groundScale))
