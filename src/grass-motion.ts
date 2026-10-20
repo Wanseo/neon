@@ -105,23 +105,22 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
   const trail: { x1: number; y1: number; x2: number; y2: number; length: number }[] = []
   let trailLength = 0
   let lastTrailTime = -Infinity
-  // Bound the visible soil by distance, so fast movement cannot leave a long
-  // strip of exposed ground during the same recovery interval.
+  // Soil is exposed only beside the cursor, never along a lingering trail.
   function addTrail(x1: number, y1: number, x2: number, y2: number) {
     const length = Math.hypot(x2 - x1, y2 - y1)
     if (length < .1) return
     trail.push({ x1, y1, x2, y2, length })
     trailLength += length
-    while (trailLength > 64 && trail.length) {
+    while (trailLength > 12 && trail.length) {
       const first = trail[0]!
-      const excess = trailLength - 64
+      const excess = trailLength - 12
       if (first.length <= excess) { trailLength -= first.length; trail.shift() }
       else {
         const fraction = excess / first.length
         first.x1 += (first.x2 - first.x1) * fraction
         first.y1 += (first.y2 - first.y1) * fraction
         first.length -= excess
-        trailLength = 64
+        trailLength = 12
       }
     }
   }
@@ -139,7 +138,7 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
         const t = Math.max(0, Math.min(1, (px * dx + py * dy) / (segment.length * segment.length)))
         const distanceSquared = (px - t * dx) ** 2 + (py - t * dy) ** 2
         const index = j * columns + i
-        openings[index] = Math.max(openings[index]!, Math.exp(-distanceSquared / 32))
+        openings[index] = Math.max(openings[index]!, Math.exp(-distanceSquared / 48))
       }
     }
   }
@@ -232,11 +231,9 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
       if (Math.abs(offsets[i]!) > .12 || Math.abs(velocities[i]!) > .12) moving = true
       else offsets[i] = velocities[i] = 0
     }
-    for (let i = 0; i < openings.length; i++) {
-      openings[i]! *= Math.exp(-dt * 1.35)
-      if (openings[i]! < .005) openings[i] = 0
-      else moving = true
-    }
+    // Close the exposed soil on the next frame after the pointer passes.
+    if (!changedTrail) openings.fill(0)
+    else moving = true
     upload()
     fieldAwake = moving
     frame = requestAnimationFrame(animate)
