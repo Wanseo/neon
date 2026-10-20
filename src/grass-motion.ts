@@ -32,6 +32,7 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
       uniform vec2 crop;
       uniform vec2 groundCrop;
       uniform float windTime;
+      uniform vec3 aperture;
       void main() {
         vec2 screen = vec2(gl_FragCoord.x / resolution.x, 1.0 - gl_FragCoord.y / resolution.y);
         vec4 encoded = texture2D(field, screen) * 255.0;
@@ -41,17 +42,27 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
         float tuft = sin(world.x * .07 + sin(world.y * .017) * 2.0) * sin(world.y * .06);
         float angle = tuft * .12;
         bend = mat2(cos(angle), sin(angle), -sin(angle), cos(angle)) * bend * (1.0 + tuft * .1);
-        vec2 displaced = screen - bend * 64.0 / viewport;
+        // Let the separate blade geometry carry most of the bending, keeping
+        // the photographic detail from stretching into soft bands.
+        vec2 displaced = screen - bend * 16.0 / viewport;
         vec2 uv = (displaced - 0.5) * crop + 0.5;
-        vec3 grass = texture2D(photograph, clamp(uv, 0.001, 0.999)).rgb;
+        vec2 safeUV = clamp(uv, 0.001, 0.999);
+        vec3 grass = texture2D(photograph, safeUV).rgb;
+        vec2 texel = crop / viewport;
+        vec3 nearby = (texture2D(photograph, safeUV + vec2(texel.x, 0.0)).rgb
+          + texture2D(photograph, safeUV - vec2(texel.x, 0.0)).rgb
+          + texture2D(photograph, safeUV + vec2(0.0, texel.y)).rgb
+          + texture2D(photograph, safeUV - vec2(0.0, texel.y)).rgb) * .25;
+        grass = clamp(grass * 1.3 - nearby * .3, 0.0, 1.0);
         vec2 groundUV = (screen - 0.5) * groundCrop + 0.5;
         vec3 earth = texture2D(ground, groundUV).rgb;
-        float gap = texture2D(opening, screen).r;
-        // Uneven blade tips soften the boundary, rather than a round cutout.
-        float blades = sin(screen.x * viewport.x * 1.7 + sin(screen.y * viewport.y * .8) * 2.0)
-          * sin(screen.y * viewport.y * 1.1) * .08;
-        float exposed = smoothstep(.28 + blades, .62 + blades, gap);
-        earth *= .78 + .22 * smoothstep(.3, .8, gap);
+        vec2 local = world - aperture.xy;
+        float extent = max(aperture.z, .001);
+        float along = abs(local.y) / (27.0 * extent);
+        float halfWidth = 9.0 * extent * pow(max(0.0, 1.0 - along), .85);
+        float exposed = smoothstep(-.6, .6, halfWidth - abs(local.x))
+          * (1.0 - step(1.0, along)) * step(.01, aperture.z);
+        earth *= .88;
         gl_FragColor = vec4(mix(grass, earth, exposed), 1.0);
       }
     `))
@@ -97,44 +108,22 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
   const blades = createGrassBlades(gl)
   let previousPointer: { x: number; y: number } | null = null
   let pending: { x: number; y: number }[] = []
-  const trail: { x1: number; y1: number; x2: number; y2: number; length: number }[] = []
-  let trailLength = 0
   let lastTrailTime = -Infinity
-  // Soil is exposed only beside the cursor, never along a lingering trail.
-  function addTrail(x1: number, y1: number, x2: number, y2: number) {
-    const length = Math.hypot(x2 - x1, y2 - y1)
-    if (length < .1) return
-    trail.push({ x1, y1, x2, y2, length })
-    trailLength += length
-    while (trailLength > 12 && trail.length) {
-      const first = trail[0]!
-      const excess = trailLength - 12
-      if (first.length <= excess) { trailLength -= first.length; trail.shift() }
-      else {
-        const fraction = excess / first.length
-        first.x1 += (first.x2 - first.x1) * fraction
-        first.y1 += (first.y2 - first.y1) * fraction
-        first.length -= excess
-        trailLength = 12
-      }
-    }
-  }
+  let apertureX = 0, apertureY = 0, apertureAmount = 0
+  const apertureUniform = gl.getUniformLocation(program, 'aperture')
   function paintOpening() {
     openings.fill(0)
-    for (const segment of trail) {
-      const dx = segment.x2 - segment.x1, dy = segment.y2 - segment.y1
-      const minX = Math.max(0, Math.floor((Math.min(segment.x1, segment.x2) - 10) / width * columns))
-      const maxX = Math.min(columns - 1, Math.ceil((Math.max(segment.x1, segment.x2) + 10) / width * columns))
-      const minY = Math.max(0, Math.floor((Math.min(segment.y1, segment.y2) - 10) / height * rows))
-      const maxY = Math.min(rows - 1, Math.ceil((Math.max(segment.y1, segment.y2) + 10) / height * rows))
-      for (let j = minY; j <= maxY; j++) for (let i = minX; i <= maxX; i++) {
-        const px = (i + .5) / columns * width - segment.x1
-        const py = (j + .5) / rows * height - segment.y1
-        const t = Math.max(0, Math.min(1, (px * dx + py * dy) / (segment.length * segment.length)))
-        const distanceSquared = (px - t * dx) ** 2 + (py - t * dy) ** 2
-        const index = j * columns + i
-        openings[index] = Math.max(openings[index]!, Math.exp(-distanceSquared / 48))
-      }
+    if (apertureAmount <= .01) return
+    const halfHeight = 27 * apertureAmount
+    const minX = Math.max(0, Math.floor((apertureX - 11) / width * columns))
+    const maxX = Math.min(columns - 1, Math.ceil((apertureX + 11) / width * columns))
+    const minY = Math.max(0, Math.floor((apertureY - halfHeight) / height * rows))
+    const maxY = Math.min(rows - 1, Math.ceil((apertureY + halfHeight) / height * rows))
+    for (let j = minY; j <= maxY; j++) for (let i = minX; i <= maxX; i++) {
+      const across = Math.abs((i + .5) / columns * width - apertureX)
+      const along = Math.abs((j + .5) / rows * height - apertureY) / halfHeight
+      const halfWidth = 9 * apertureAmount * Math.max(0, 1 - along) ** .85
+      openings[j * columns + i] = along < 1 ? Math.max(0, Math.min(1, (halfWidth - across) / 1.2 + .5)) : 0
     }
   }
   function draw() {
@@ -143,6 +132,7 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
     gl!.enableVertexAttribArray(position)
     gl!.vertexAttribPointer(position, 2, gl!.FLOAT, false, 0, 0)
     gl!.uniform1f(windUniform, windTime)
+    gl!.uniform3f(apertureUniform, apertureX, apertureY, soil ? apertureAmount : 0)
     gl!.drawArrays(gl!.TRIANGLES, 0, 6)
     blades.draw(windTime)
     gl!.useProgram(program)
@@ -211,12 +201,11 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
       return
     }
     let changedTrail = false
-    if (pending.length && time - lastTrailTime > 200) { trail.length = 0; trailLength = 0 }
     for (const point of pending) {
       const start = previousPointer ?? point
       const dx = point.x - start.x, dy = point.y - start.y
       if (Math.hypot(dx, dy) >= .1) {
-        addTrail(start.x, start.y, point.x, point.y)
+        apertureX = point.x; apertureY = point.y
         changedTrail = true
       }
       const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 6))
@@ -224,17 +213,18 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
       previousPointer = point
     }
     pending = []
-    if (changedTrail) { paintOpening(); lastTrailTime = time }
+    if (changedTrail) lastTrailTime = time
+    // Briefly hold the opening, then close its pointed ends towards the center.
+    apertureAmount = Math.max(0, Math.min(1, 1 - (time - lastTrailTime - 140) / 420))
+    paintOpening()
     let moving = false
     for (let i = 0; i < offsets.length; i++) {
       velocities[i]! += (-offsets[i]! * 38 - velocities[i]! * 10) * dt
-      offsets[i] = Math.max(-14, Math.min(14, offsets[i]! + velocities[i]! * dt))
+      offsets[i] = Math.max(-9, Math.min(9, offsets[i]! + velocities[i]! * dt))
       if (Math.abs(offsets[i]!) > .12 || Math.abs(velocities[i]!) > .12) moving = true
       else offsets[i] = velocities[i] = 0
     }
-    // Close the exposed soil on the next frame after the pointer passes.
-    if (!changedTrail) openings.fill(0)
-    else moving = true
+    if (apertureAmount > 0) moving = true
     upload()
     fieldAwake = moving
     frame = requestAnimationFrame(animate)
@@ -260,7 +250,7 @@ export function installGrassMotion(image: HTMLImageElement, soil?: HTMLImageElem
     openings = new Float32Array(columns * rows)
     openingPixels = new Uint8Array(columns * rows * 4)
     previousPointer = null; pending = []
-    trail.length = 0; trailLength = 0
+    apertureAmount = 0; lastTrailTime = -Infinity
     upload()
   }
   window.addEventListener('pointermove', event => {
