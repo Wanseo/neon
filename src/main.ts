@@ -61,7 +61,7 @@ function updateTracking(result: PoseLandmarkerResult, time: number) {
   const width = video.videoWidth, height = video.videoHeight
   const span = Math.hypot((right.x - left.x) * width, (right.y - left.y) * height)
   const angle = Math.atan2((right.y - left.y) * height, (right.x - left.x) * width)
-  target = { x: (left.x + right.x) * width / 2, y: (left.y + right.y) * height / 2 + span * .32, span, angle: angle > Math.PI / 2 ? angle - Math.PI : angle < -Math.PI / 2 ? angle + Math.PI : angle }
+  target = { x: (left.x + right.x) * width / 2, y: (left.y + right.y) * height / 2 + span * .1, span, angle: angle > Math.PI / 2 ? angle - Math.PI : angle < -Math.PI / 2 ? angle + Math.PI : angle }
   if (time - lastSeen > 800) anchor = { ...target }
   lastSeen = time
   if (mask.width !== segmentation.width || mask.height !== segmentation.height) { mask.width = segmentation.width; mask.height = segmentation.height }
@@ -98,7 +98,7 @@ function draw(time: number) {
     if (visible && opacity > .01 && wing.complete && wing.naturalWidth) {
       const phase = reducedMotion.matches ? 0 : time / 1000 * 1.15
       const flap = Math.sin(phase)
-      const wingWidth = anchor.span * .82
+      const wingWidth = anchor.span * 1.05
       const wingHeight = wingWidth * wing.naturalHeight / wing.naturalWidth
       ctx.save()
       ctx.translate(anchor.x, anchor.y)
