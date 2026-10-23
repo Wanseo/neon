@@ -62,14 +62,15 @@ function updateTracking(result: PoseLandmarkerResult, time: number) {
   const width = video.videoWidth, height = video.videoHeight
   const span = Math.hypot((right.x - left.x) * width, (right.y - left.y) * height)
   const angle = Math.atan2((right.y - left.y) * height, (right.x - left.x) * width)
-  target = { x: (left.x + right.x) * width / 2, y: (left.y + right.y) * height / 2 + span * .24, span, angle: angle > Math.PI / 2 ? angle - Math.PI : angle < -Math.PI / 2 ? angle + Math.PI : angle }
+  target = { x: (left.x + right.x) * width / 2, y: (left.y + right.y) * height / 2 + span * .32, span, angle: angle > Math.PI / 2 ? angle - Math.PI : angle < -Math.PI / 2 ? angle + Math.PI : angle }
   if (time - lastSeen > 800) anchor = { ...target }
   lastSeen = time
   if (mask.width !== segmentation.width || mask.height !== segmentation.height) { mask.width = segmentation.width; mask.height = segmentation.height }
   const data = segmentation.getAsFloat32Array()
   const pixels = maskCtx.createImageData(mask.width, mask.height)
   for (let i = 0; i < data.length; i++) {
-    const confidence = Math.max(0, Math.min(1, (data[i]! - .25) / .5))
+    // Keep the torso and its edges fully in front of the wing attachment.
+    const confidence = Math.max(0, Math.min(1, (data[i]! - .12) / .22))
     pixels.data[i * 4] = pixels.data[i * 4 + 1] = pixels.data[i * 4 + 2] = 255
     pixels.data[i * 4 + 3] = Math.round(confidence * 255)
   }
@@ -98,7 +99,7 @@ function draw(time: number) {
     if (visible && opacity > .01 && wing.complete && wing.naturalWidth) {
       const phase = reducedMotion.matches ? 0 : time / 1000 * 1.15
       const flap = Math.sin(phase)
-      const wingWidth = anchor.span * 1.55
+      const wingWidth = anchor.span * .72
       const wingHeight = wingWidth * wing.naturalHeight / wing.naturalWidth
       ctx.save()
       ctx.translate(anchor.x, anchor.y)
@@ -110,7 +111,8 @@ function draw(time: number) {
         // The hinge remains on the back; changing projected width gives a slow
         // forward/backward flap rather than a whole-wing sideways translation.
         ctx.scale(side * (.78 + flap * .16), 1 + flap * .025)
-        ctx.rotate(side * (.035 * Math.sin(phase - .5)))
+        // Mirroring already handles left/right; both wings fan out from the back.
+        ctx.rotate(.22 + .025 * Math.sin(phase - .5))
         ctx.drawImage(wing, 0, -wingHeight * .59, wingWidth, wingHeight)
         ctx.restore()
       }
