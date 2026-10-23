@@ -48,8 +48,7 @@ async function loadTracking() {
     runningMode: 'VIDEO' as const, numPoses: 1, outputSegmentationMasks: true,
     minPoseDetectionConfidence: .5, minPosePresenceConfidence: .5, minTrackingConfidence: .5,
   }
-  try { landmarker = await PoseLandmarker.createFromOptions(files, { ...options, baseOptions: { ...options.baseOptions, delegate: 'GPU' } }) }
-  catch { landmarker = await PoseLandmarker.createFromOptions(files, options) }
+  landmarker = await PoseLandmarker.createFromOptions(files, options)
   return landmarker
 }
 
@@ -99,7 +98,7 @@ function draw(time: number) {
     if (visible && opacity > .01 && wing.complete && wing.naturalWidth) {
       const phase = reducedMotion.matches ? 0 : time / 1000 * 1.15
       const flap = Math.sin(phase)
-      const wingWidth = anchor.span * .72
+      const wingWidth = anchor.span * .82
       const wingHeight = wingWidth * wing.naturalHeight / wing.naturalWidth
       ctx.save()
       ctx.translate(anchor.x, anchor.y)
@@ -107,7 +106,7 @@ function draw(time: number) {
       ctx.globalAlpha = opacity * .94
       for (const side of [-1, 1]) {
         ctx.save()
-        ctx.translate(side * anchor.span * .09, 0)
+        ctx.translate(side * anchor.span * .32, 0)
         // The hinge remains on the back; changing projected width gives a slow
         // forward/backward flap rather than a whole-wing sideways translation.
         ctx.scale(side * (.78 + flap * .16), 1 + flap * .025)
