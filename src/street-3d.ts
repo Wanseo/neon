@@ -244,7 +244,7 @@ export function createStreet3D(host: HTMLElement) {
   }
   resize(); window.addEventListener('resize', resize)
   return {
-    render(playerX: number, cameraX: number, sectionPixels: number, totalPixels: number, immersion = 0, walkTime = 0) {
+    render(playerX: number, cameraX: number, sectionPixels: number, totalPixels: number, immersion = 0, walkTime = 0, lateral = 0) {
       const total = totalPixels / 100, section = sectionPixels / 100
       if (Math.abs(total - builtWidth) > .01) { rebuild(total, section); builtWidth = total }
       const center = (cameraX + innerWidth / 2) / 100
@@ -267,8 +267,8 @@ export function createStreet3D(host: HTMLElement) {
       host.dataset.daylight = morning.toFixed(3)
       const player = playerX / 100
       const bob = Math.sin(walkTime * 10) * .025 * immersion
-      camera.position.set(player + 7 * (1 - immersion) - 1.1 * immersion, 2.4 - .7 * immersion + bob, 7.2 + 5 * (1 - immersion))
-      camera.lookAt(player + 14 * immersion, 1.55 + bob, 7.2)
+      camera.position.set(player + 7 * (1 - immersion) - 1.1 * immersion, 2.4 - .7 * immersion + bob, 7.2 + 5 * (1 - immersion) + lateral * immersion)
+      camera.lookAt(player + 14 * immersion, 1.55 + bob, 7.2 + lateral * immersion)
       camera.updateMatrixWorld()
       renderer.render(scene, camera)
       point.set(playerX / 100, .19, 7.2).project(camera)

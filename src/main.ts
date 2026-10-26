@@ -68,6 +68,7 @@ const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
 let x = innerWidth * .23, facing = 1, frame = 0, lastTime = 0, stepTime = 0
 let worldWidth = 0, sectionWidth = 0, characterWidth = 0, stage = -1, progressValue = -1
 let hasTurned = false, drawnSprite = -1
+let lateral = 0
 let immersed = false, immersion = 0, transitionFrame = 0, transitionStart = 0
 function switchView() {
   if (!street3D) return
@@ -75,7 +76,7 @@ function switchView() {
   release()
   app.classList.toggle('is-immersed', immersed)
   viewButton.textContent = immersed ? '전체 모습 보기' : '클릭해서 함께 걷기'
-  hint.textContent = immersed ? '↑ / W 앞으로 · ↓ / S 뒤로' : '← → / A D 이동 · ↓ 정면'
+  hint.textContent = immersed ? '↑ ↓ 앞뒤 · ← → 좌우 / W A S D' : '← → / A D 이동 · ↓ 정면'
   cancelAnimationFrame(transitionFrame)
   transitionStart = performance.now()
   const from = immersion, to = Number(immersed)
@@ -93,11 +94,11 @@ character.addEventListener('click', switchView)
 app.addEventListener('click', event => {
   if (!immersed && event.target === app) switchView()
 })
-const direction = () => immersed ? Number(held.has('ArrowUp') || held.has('KeyW') || held.has('ArrowRight') || held.has('KeyD')) - Number(held.has('ArrowDown') || held.has('KeyS') || held.has('ArrowLeft') || held.has('KeyA')) : Number(held.has('ArrowRight') || held.has('KeyD')) - Number(held.has('ArrowLeft') || held.has('KeyA'))
+const direction = () => immersed ? Number(held.has('ArrowUp') || held.has('KeyW')) - Number(held.has('ArrowDown') || held.has('KeyS')) : Number(held.has('ArrowRight') || held.has('KeyD')) - Number(held.has('ArrowLeft') || held.has('KeyA'))
 function paint(walking = false) {
   const camera = Math.max(0, Math.min(worldWidth - innerWidth, x - innerWidth * .45))
   const bounce = walking && !reducedMotion.matches ? -Math.abs(Math.sin(stepTime * 12)) * 2 : 0
-  const projected = street3D?.render(x, camera, sectionWidth, worldWidth, immersion, stepTime)
+  const projected = street3D?.render(x, camera, sectionWidth, worldWidth, immersion, stepTime, lateral)
   const screenX = projected ? Math.max(characterWidth / 2 + 20, Math.min(innerWidth - characterWidth / 2 - 20, projected.x)) : x - camera
   if (projected) character.style.bottom = `${innerHeight - projected.y - 8}px`
   closeHead.style.transform = `translateX(-50%) translateY(${bounce}px)`
@@ -139,13 +140,17 @@ function move(time: number) {
   const dt = lastTime ? Math.min((time - lastTime) / 1000, .04) : 1 / 60
   lastTime = time
   const axis = direction()
-  if (!axis) { lastTime = 0; stepTime = 0; paint(); return }
-  facing = axis
+  const sideways = immersed ? Number(held.has('ArrowRight') || held.has('KeyD')) - Number(held.has('ArrowLeft') || held.has('KeyA')) : 0
+  if (!axis && !sideways) { lastTime = 0; stepTime = 0; paint(); return }
+  if (axis) facing = axis
   hasTurned = true
-  const previous = x
-  x = Math.max(characterWidth / 2 + 20, Math.min(worldWidth - characterWidth / 2 - 20, x + axis * 290 * dt))
+  const previous = x, previousLateral = lateral
+  const speed = axis && sideways ? Math.SQRT1_2 : 1
+  lateral = Math.max(-1.7, Math.min(1.7, lateral + sideways * 1.8 * dt * speed))
+  app.dataset.lateral = lateral.toFixed(3)
+  x = Math.max(characterWidth / 2 + 20, Math.min(worldWidth - characterWidth / 2 - 20, x + axis * 290 * dt * speed))
   stepTime += dt
-  paint(x !== previous)
+  paint(x !== previous || lateral !== previousLateral)
   frame = requestAnimationFrame(move)
 }
 function release() {
