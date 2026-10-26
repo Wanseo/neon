@@ -119,7 +119,7 @@ function update(time: number) {
   const forward = axis(['ArrowUp', 'KeyW'], ['ArrowDown', 'KeyS'])
   const sideways = axis(['ArrowRight', 'KeyD'], ['ArrowLeft', 'KeyA'])
   const previous = position, previousLateral = lateral
-  if (forward) { started = true; initialFacing = 0 }
+  if (forward) { started = true; if (!sideways) initialFacing = 0 }
   const speed = forward && sideways ? Math.SQRT1_2 : 1
   position = clamp(position + (automatic ? .105 : forward * .13 * speed) * dt, 0, walkRoute.length)
   const sceneIndex = Math.min(walkRoute.length - 1, Math.floor(position))
@@ -137,7 +137,8 @@ function update(time: number) {
 }
 function toggleWalk() {
   if (position >= walkRoute.length) { position = 0; lateral = 0 }
-  started = true; initialFacing = 0; automatic = !automatic
+  started = true; automatic = !automatic
+  if (automatic) initialFacing = 0
   if (automatic) music.start()
   paint(); if (automatic) ensureFrame()
 }
@@ -151,7 +152,18 @@ function reset() {
   paint()
 }
 function press(key: string) {
-  automatic = false; held.add(key); ensureFrame()
+  automatic = false
+  // Turn on keydown, before the first movement frame, even at a screen edge.
+  if (key === 'ArrowLeft' || key === 'KeyA') {
+    initialFacing = -1
+    held.delete('ArrowRight'); held.delete('KeyD')
+  } else if (key === 'ArrowRight' || key === 'KeyD') {
+    initialFacing = 1
+    held.delete('ArrowLeft'); held.delete('KeyA')
+  }
+  held.add(key)
+  paint()
+  ensureFrame()
 }
 toggle.addEventListener('click', toggleWalk)
 controls.querySelector('.walk-reset')!.addEventListener('click', reset)
