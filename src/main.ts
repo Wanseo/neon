@@ -1,200 +1,153 @@
 import './style.css'
+import frontUrl from './assets/mint-hoodie-front-slouched.png'
 import backUrl from './assets/mint-hoodie-back.png'
-import photoUrl from './assets/yeonhui-photo-background.png'
-import type { createStreet3D } from './street-3d'
-import characterUrl from './assets/mint-hoodie-front-slouched.png'
 import walkingUrl from './assets/mint-hoodie-walk-slouched.png'
-import bridgeUrl from './assets/route-bridge.jpg'
-import mapoUrl from './assets/route-mapo.jpg'
-import roadUrl from './assets/route-yeonhui-road.jpg'
-import yeonhuiUrl from './assets/route-yeonhui.jpg'
+import { walkRoute } from './walk-route'
 
-const locations = [
-  { name: '양화대교 북단', subtitle: '한강을 건너, 동네로', image: bridgeUrl },
-  { name: '합정 · 망원 일대', subtitle: '낮은 건물과 새벽 불빛 사이', image: mapoUrl },
-  { name: '연희로', subtitle: '연희동으로 이어지는 길', image: roadUrl },
-  { name: '연희동', subtitle: '담장 너머로 아침이 찾아오는 곳', image: yeonhuiUrl },
-]
 const app = document.querySelector<HTMLDivElement>('#app')!
-const world = document.createElement('div')
-world.className = 'street-world'
-world.setAttribute('aria-hidden', 'true')
-for (const place of locations) {
-  const scene = document.createElement('section')
-  scene.className = 'street-section'
-  const image = document.createElement('img')
+app.className = 'reference-walk'
+const photos = walkRoute.map(place => {
+  const image = new Image()
+  image.className = 'route-photo'
   image.src = place.image; image.alt = ''; image.draggable = false
-  scene.append(image); world.append(scene)
-}
+  image.style.objectPosition = `${place.focus * 100}% center`
+  app.append(image)
+  return image
+})
 const character = document.createElement('div')
-character.className = 'pixel-character'
-character.setAttribute('role', 'img')
-character.setAttribute('aria-label', '민트색 머리와 파란 후드 차림으로 연희동을 향해 걷는 픽셀 캐릭터')
-const front = document.createElement('img')
-front.className = 'character-front'
-front.src = characterUrl; front.alt = ''; front.draggable = false
-const walkSheet = document.createElement('img')
-walkSheet.className = 'character-walk'
-walkSheet.src = walkingUrl; walkSheet.alt = ''; walkSheet.draggable = false
-character.append(front, walkSheet)
-const closeHead = document.createElement('div')
-closeHead.className = 'close-head'
-closeHead.setAttribute('aria-hidden', 'true')
-closeHead.innerHTML = `<img src="${backUrl}" alt="" draggable="false">`
-const viewButton = document.createElement('button')
-viewButton.className = 'view-button'
-viewButton.textContent = '클릭해서 골목 안으로 걷기'
-app.append(closeHead, viewButton)
+character.className = 'route-character'
+character.setAttribute('role', 'button'); character.tabIndex = 0
+character.setAttribute('aria-label', '픽셀 캐릭터와 골목 걷기 시작 또는 일시 정지')
+character.innerHTML = `<img class="route-front" src="${frontUrl}" alt="" draggable="false"><img class="route-back" src="${backUrl}" alt="" draggable="false"><div class="route-side"><img src="${walkingUrl}" alt="" draggable="false"></div>`
 const heading = document.createElement('header')
 heading.className = 'location'
-heading.innerHTML = '<p class="journey">양화대교에서 연희동까지</p><h1></h1><p class="place-description"></p>'
+heading.innerHTML = '<p class="journey">연희동 · 행복한나눔 인근</p><h1></h1><p class="place-description"></p>'
 const progress = document.createElement('div')
 progress.className = 'route-progress'
-progress.setAttribute('aria-label', '산책 경로 진행률')
-progress.setAttribute('role', 'progressbar')
+progress.setAttribute('role', 'progressbar'); progress.setAttribute('aria-label', '사진 속 산책 진행률')
 progress.setAttribute('aria-valuemin', '0'); progress.setAttribute('aria-valuemax', '100')
 const hint = document.createElement('p')
-hint.className = 'keyboard-hint'; hint.textContent = '← → / A D  이동 · ↓ 정면'
+hint.className = 'keyboard-hint'
+hint.textContent = '↑ ↓ 앞뒤 · ← → 좌우 · SPACE 걷기 / 멈추기'
+const controls = document.createElement('div')
+controls.className = 'walk-actions'
+controls.innerHTML = '<button class="walk-toggle" type="button">클릭해서 골목 안으로 걷기</button><button class="walk-reset" type="button">처음으로</button>'
 const touch = document.createElement('div')
 touch.className = 'touch-controls'
-touch.innerHTML = '<button type="button" data-key="ArrowLeft" aria-label="왼쪽으로 이동">←</button><button type="button" data-key="ArrowRight" aria-label="오른쪽으로 이동">→</button>'
-app.append(world, character, heading, progress, hint, touch)
-let street3D: ReturnType<typeof createStreet3D> | undefined
-const photo = document.createElement('img')
-photo.className = 'photo-background'
-photo.src = photoUrl
-photo.alt = ''
-photo.draggable = false
-app.prepend(photo)
-app.classList.add('has-photo-background')
-
-
+touch.innerHTML = '<button data-key="ArrowLeft" aria-label="왼쪽">←</button><button data-key="ArrowUp" aria-label="앞으로">↑</button><button data-key="ArrowDown" aria-label="뒤로">↓</button><button data-key="ArrowRight" aria-label="오른쪽">→</button>'
+app.append(character, heading, progress, hint, controls, touch)
+const toggle = controls.querySelector<HTMLButtonElement>('.walk-toggle')!
 const held = new Set<string>()
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
-let x = innerWidth * .23, facing = 1, frame = 0, lastTime = 0, stepTime = 0
-let worldWidth = 0, sectionWidth = 0, characterWidth = 0, stage = -1, progressValue = -1
-let hasTurned = false, drawnSprite = -1
-let lateral = 0
-let immersed = false, immersion = 0, transitionFrame = 0, transitionStart = 0
-function switchView() {
-  immersed = !immersed
-  release()
-  app.classList.toggle('is-immersed', immersed)
-  viewButton.textContent = immersed ? '처음 위치로 돌아오기' : '클릭해서 골목 안으로 걷기'
-  hint.textContent = immersed ? '↑ ↓ 앞뒤 · ← → 좌우 / W A S D' : '← → / A D 이동 · ↓ 정면'
-  cancelAnimationFrame(transitionFrame)
-  transitionStart = performance.now()
-  const from = immersion, to = Number(immersed)
-  const animate = (time: number) => {
-    const t = reducedMotion.matches ? 1 : Math.max(0, Math.min(1, (time - transitionStart) / (immersed ? 7000 : 1000)))
-    immersion = from + (to - from) * (t * t * (3 - 2 * t))
-    app.style.setProperty('--immersion', String(immersion))
-    stepTime = (time - transitionStart) / 1000
-    paint(t < 1)
-    if (t < 1) transitionFrame = requestAnimationFrame(animate)
-  }
-  transitionFrame = requestAnimationFrame(animate)
-}
-viewButton.addEventListener('click', switchView)
-character.addEventListener('click', switchView)
-app.addEventListener('click', event => {
-  if (!immersed && event.target === app) switchView()
-})
-const direction = () => immersed ? Number(held.has('ArrowUp') || held.has('KeyW')) - Number(held.has('ArrowDown') || held.has('KeyS')) : Number(held.has('ArrowRight') || held.has('KeyD')) - Number(held.has('ArrowLeft') || held.has('KeyA'))
+let position = 0, lateral = 0, started = false, automatic = false
+let frame = 0, lastTime = 0, stepTime = 0, stage = -1, lastPercent = -1
+let initialFacing = 0
+const clamp = (n: number, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, n))
+const mix = (a: number, b: number, t: number) => a + (b - a) * t
+const axis = (positive: string[], negative: string[]) => Number(positive.some(k => held.has(k))) - Number(negative.some(k => held.has(k)))
+
 function paint(walking = false) {
-  const camera = Math.max(0, Math.min(worldWidth - innerWidth, x - innerWidth * .45))
-  const bounce = walking && !reducedMotion.matches ? -Math.abs(Math.sin(stepTime * 12)) * 2 : 0
-  const projected = street3D?.render(x, camera, sectionWidth, worldWidth, immersion, stepTime, lateral)
-  const screenX = projected ? Math.max(characterWidth / 2 + 20, Math.min(innerWidth - characterWidth / 2 - 20, projected.x)) : x - camera
-  if (projected) character.style.bottom = `${innerHeight - projected.y - 8}px`
-  photo.style.transform = 'none'
-  const depthScale = 1 - immersion * .82
-  const depthX = innerWidth * (.5 - immersion * .015) + lateral * 55 * depthScale
-  const depthY = innerHeight * (.88 - immersion * .31)
-  closeHead.style.left = `${depthX}px`
-  closeHead.style.top = `${depthY}px`
-  closeHead.style.transform = `translate(-50%, -100%) scale(${depthScale}) translateY(${bounce}px) rotate(${walking && !reducedMotion.matches ? Math.sin(stepTime * 9) * 1.2 : 0}deg)`
-  world.style.transform = `translate3d(${-camera}px, 0, 0)`
-  character.style.transform = `translate3d(${(hasTurned ? screenX : innerWidth * .5) - characterWidth / 2}px, ${bounce}px, 0) scaleX(${facing})`
-  character.classList.toggle('is-side', hasTurned && walkSheet.complete && walkSheet.naturalWidth > 0)
+  const index = Math.min(walkRoute.length - 1, Math.floor(position))
+  const t = clamp(position - index)
+  const scene = walkRoute[index]!
+  const fade = reducedMotion.matches ? 0 : clamp((t - .82) / .18)
+  photos.forEach((photo, i) => {
+    photo.style.zIndex = String(i === index + 1 ? 1 : 0)
+    photo.style.opacity = String(i === index ? 1 : i === index + 1 ? fade : 0)
+    const local = i === index ? t : 0
+    const pan = walkRoute[i]!.pan
+    photo.style.transform = `scale(${1 + pan * 2}) translateX(${pan ? (local - .5) * pan * 100 : 0}%)`
+  })
+  const bounce = walking && !reducedMotion.matches ? -Math.abs(Math.sin(stepTime * 11)) * 2 : 0
+  const scale = started ? mix(scene.scale[0], scene.scale[1], t) : 1
+  // Keep the actor on the visible pavement even when the photo is cropped on mobile.
+  let px = started ? mix(scene.start[0], scene.end[0], t) : .5
+  if (innerWidth / innerHeight < 1 && index === 3) px = mix(.53, .43, t)
+  const py = started ? mix(scene.start[1], scene.end[1], t) : .88
+  const side = started ? scene.view === 'side' : initialFacing !== 0
+  character.dataset.view = side ? 'side' : started ? 'back' : 'front'
+  character.style.left = `${clamp(px + lateral * .07 * scale, .12, .88) * 100}%`
+  character.style.top = `${py * 100}%`
+  const sway = walking && !reducedMotion.matches ? Math.sin(stepTime * 8) * .7 : 0
+  character.style.transform = `translate(-50%, -100%) scale(${scale}) translateY(${bounce}px) rotate(${sway}deg)`
+  const sideHolder = character.querySelector<HTMLElement>('.route-side')!
+  sideHolder.style.transform = `scaleX(${started ? -1 : initialFacing || 1})`
   const sprite = walking && !reducedMotion.matches ? [1, 2, 3, 2][Math.floor(stepTime * 8) % 4]! : 0
-  if (sprite !== drawnSprite) {
-    walkSheet.style.transform = `translateX(${-sprite * 25}%)`
-    drawnSprite = sprite
+  sideHolder.querySelector('img')!.style.transform = `translateX(${-sprite * 25}%)`
+  if (stage !== index) {
+    stage = index
+    heading.querySelector('h1')!.textContent = scene.name
+    heading.querySelector('.place-description')!.textContent = scene.description
   }
-  const nextStage = Math.min(locations.length - 1, Math.max(0, Math.floor(x / sectionWidth)))
-  if (nextStage !== stage) {
-    stage = nextStage
-    heading.querySelector('h1')!.textContent = locations[stage]!.name
-    heading.querySelector('.place-description')!.textContent = locations[stage]!.subtitle
-  }
-  const percent = Math.round(x / Math.max(1, worldWidth - characterWidth / 2 - 20) * 100)
-  if (percent !== progressValue) {
-    progressValue = percent
+  const percent = Math.round(position / walkRoute.length * 100)
+  if (percent !== lastPercent) {
+    lastPercent = percent
     progress.style.setProperty('--progress', `${percent}%`)
     progress.setAttribute('aria-valuenow', String(percent))
-    progress.setAttribute('aria-valuetext', `${locations[stage]!.name}, ${percent}%`)
+    progress.setAttribute('aria-valuetext', `${scene.name}, ${percent}%`)
   }
+  app.dataset.stage = String(index); app.dataset.position = position.toFixed(4)
+  app.dataset.lateral = lateral.toFixed(3); app.dataset.walking = String(walking)
+  toggle.textContent = !started ? '클릭해서 골목 안으로 걷기' : position >= walkRoute.length ? '여기까지 걸었어요 · 다시 걷기' : automatic ? '일시 정지' : '계속 걷기'
 }
-function measure() {
-  const previousWidth = worldWidth
-  const fraction = previousWidth ? x / previousWidth : 0
-  sectionWidth = Math.max(innerWidth, innerHeight * 2.5)
-  worldWidth = sectionWidth * locations.length
-  app.style.setProperty('--section-width', `${sectionWidth}px`)
-  characterWidth = character.getBoundingClientRect().width
-  if (previousWidth) x = fraction * worldWidth
-  x = Math.max(characterWidth / 2 + 20, Math.min(worldWidth - characterWidth / 2 - 20, x))
+function ensureFrame() { if (!frame) frame = requestAnimationFrame(update) }
+function update(time: number) {
+  frame = 0
+  const dt = lastTime ? clamp((time - lastTime) / 1000, 0, .04) : 1 / 60
+  lastTime = time
+  const forward = axis(['ArrowUp', 'KeyW'], ['ArrowDown', 'KeyS'])
+  const sideways = axis(['ArrowRight', 'KeyD'], ['ArrowLeft', 'KeyA'])
+  const previous = position, previousLateral = lateral
+  if (forward) started = true
+  const speed = forward && sideways ? Math.SQRT1_2 : 1
+  position = clamp(position + (automatic ? .105 : forward * .13 * speed) * dt, 0, walkRoute.length)
+  lateral = clamp(lateral + sideways * dt * 1.4 * speed, -1.7, 1.7)
+  if (!started && sideways) initialFacing = sideways
+  if (position >= walkRoute.length) automatic = false
+  const walking = position !== previous || lateral !== previousLateral
+  if (walking) stepTime += dt
+  paint(walking)
+  if (automatic || held.size) ensureFrame()
+  else lastTime = 0
+}
+function toggleWalk() {
+  if (position >= walkRoute.length) { position = 0; lateral = 0 }
+  started = true; automatic = !automatic
+  paint(); if (automatic) ensureFrame()
+}
+function stopInput() {
+  held.clear(); automatic = false
+  cancelAnimationFrame(frame); frame = 0; lastTime = 0
   paint()
 }
-function move(time: number) {
-  frame = 0
-  const dt = lastTime ? Math.min((time - lastTime) / 1000, .04) : 1 / 60
-  lastTime = time
-  const axis = direction()
-  const sideways = immersed ? Number(held.has('ArrowRight') || held.has('KeyD')) - Number(held.has('ArrowLeft') || held.has('KeyA')) : 0
-  if (!axis && !sideways) { lastTime = 0; stepTime = 0; paint(); return }
-  if (axis) facing = axis
-  hasTurned = true
-  const previous = x, previousLateral = lateral
-  const speed = axis && sideways ? Math.SQRT1_2 : 1
-  lateral = Math.max(-1.7, Math.min(1.7, lateral + sideways * 1.8 * dt * speed))
-  app.dataset.lateral = lateral.toFixed(3)
-  if (immersed && axis) {
-    cancelAnimationFrame(transitionFrame)
-    immersion = Math.max(0, Math.min(1, immersion + axis * dt * .12))
-    app.style.setProperty('--immersion', String(immersion))
-  }
-  x = Math.max(characterWidth / 2 + 20, Math.min(worldWidth - characterWidth / 2 - 20, x + axis * 290 * dt * speed))
-  stepTime += dt
-  paint(x !== previous || lateral !== previousLateral)
-  frame = requestAnimationFrame(move)
+function reset() {
+  stopInput(); position = 0; lateral = 0; started = false; initialFacing = 0; stepTime = 0
+  paint()
 }
-function release() {
-  held.clear(); cancelAnimationFrame(frame)
-  frame = 0; lastTime = 0; stepTime = 0; paint()
+function press(key: string) {
+  automatic = false; held.add(key); ensureFrame()
 }
-function press(key: string) { held.add(key); if (!frame) frame = requestAnimationFrame(move) }
+toggle.addEventListener('click', toggleWalk)
+controls.querySelector('.walk-reset')!.addEventListener('click', reset)
+character.addEventListener('click', toggleWalk)
+character.addEventListener('keydown', event => {
+  if (event.code === 'Enter') { event.preventDefault(); toggleWalk() }
+})
 window.addEventListener('keydown', event => {
-  if (!['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', 'KeyW', 'KeyS', 'KeyA', 'KeyD'].includes(event.code) || event.metaKey || event.ctrlKey || event.altKey) return
-  if (event.target instanceof HTMLElement && (event.target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName))) return
+  if (event.metaKey || event.ctrlKey || event.altKey || event.target instanceof HTMLElement && (event.target.isContentEditable || ['INPUT','TEXTAREA','SELECT'].includes(event.target.tagName))) return
+  if (!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','KeyW','KeyA','KeyS','KeyD','Space'].includes(event.code)) return
+  if (event.code === 'Space' && event.target instanceof HTMLButtonElement) return
   event.preventDefault()
-  if (event.code === 'ArrowDown' && !immersed) {
-    hasTurned = false; facing = 1
-    release()
-    return
-  }
+  if (event.code === 'Space') { if (!event.repeat) toggleWalk(); return }
+  if (event.code === 'ArrowDown' && !started) { initialFacing = 0; stopInput(); return }
   press(event.code)
 })
-window.addEventListener('keyup', event => { held.delete(event.code); if (!held.size) release() })
+window.addEventListener('keyup', event => { held.delete(event.code) })
 for (const button of touch.querySelectorAll<HTMLButtonElement>('button')) {
-  button.addEventListener('pointerdown', event => { button.setPointerCapture(event.pointerId); press(button.dataset.key!) })
-  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(type, () => { held.delete(button.dataset.key!); if (!held.size) release() })
+  button.addEventListener('pointerdown', event => { event.preventDefault(); button.setPointerCapture(event.pointerId); press(button.dataset.key!) })
+  for (const type of ['pointerup','pointercancel','lostpointercapture']) button.addEventListener(type, () => held.delete(button.dataset.key!))
 }
-window.addEventListener('blur', release)
-document.addEventListener('visibilitychange', () => { if (document.hidden) release() })
-window.addEventListener('resize', measure)
-front.addEventListener('load', measure)
-walkSheet.addEventListener('load', () => paint())
-new ResizeObserver(measure).observe(character)
-measure()
+window.addEventListener('blur', stopInput)
+document.addEventListener('visibilitychange', () => { if (document.hidden) stopInput() })
+window.addEventListener('resize', () => paint())
+paint()

@@ -2,52 +2,25 @@
 html, body { margin: 0; width: 100%; height: 100%; background: #202640; }
 body { overflow: hidden; font-family: Arial, 'Apple SD Gothic Neo', sans-serif; color: #f5f0e7; }
 #app { position: relative; width: 100%; height: 100vh; height: 100dvh; overflow: hidden; isolation: isolate; }
-.street-world { position: absolute; inset: 0 auto 0 0; display: flex; height: 100%; will-change: transform; }
-.street-section { position: relative; flex: 0 0 var(--section-width, 100vw); height: 100%; }
-.street-section img { display: block; width: 100%; height: 100%; object-fit: fill; image-rendering: pixelated; user-select: none; }
-.street-section + .street-section::before { content: ''; position: absolute; left: -20px; width: 40px; top: 0; bottom: 0; background: linear-gradient(90deg, transparent, #252b4b28, transparent); pointer-events: none; }
-.pixel-character { position: absolute; left: 0; bottom: calc(18% - 8px); display: block; height: min(260px, 34dvh); width: min(156px, 20.4dvh); max-width: 30vw; overflow: hidden; image-rendering: pixelated; user-select: none; will-change: transform; filter: brightness(.82) saturate(.85); }
-.location { position: absolute; top: max(28px, env(safe-area-inset-top)); left: clamp(22px, 4vw, 64px); pointer-events: none; text-shadow: 0 2px 12px #0a102e; }
+.route-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; user-select: none; will-change: transform, opacity; }
+.route-character { position: absolute; z-index: 2; width: min(156px, 20.4dvh); height: min(260px, 34dvh); transform-origin: 50% 100%; cursor: pointer; user-select: none; filter: brightness(.76) saturate(.8); will-change: transform; }
+.route-character > img, .route-side { display: none; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.route-character[data-view="front"] .route-front, .route-character[data-view="back"] .route-back, .route-character[data-view="side"] .route-side { display: block; }
+.route-side { overflow: hidden; }
+.route-side img { display: block; width: 400%; max-width: none; height: 100%; image-rendering: pixelated; }
+.location { position: absolute; z-index: 3; top: max(28px, env(safe-area-inset-top)); left: clamp(22px, 4vw, 64px); pointer-events: none; text-shadow: 0 2px 12px #0a102e; }
 .journey { margin: 0 0 12px; font-size: 10px; letter-spacing: .18em; opacity: .75; }
 h1 { margin: 0; font-size: clamp(22px, 3vw, 34px); font-weight: 500; letter-spacing: -.05em; }
 .place-description { margin-top: 9px; font-size: 11px; opacity: .75; }
-.keyboard-hint { position: absolute; bottom: 22px; left: clamp(22px, 4vw, 64px); margin: 0; font-size: 11px; letter-spacing: .1em; opacity: .8; text-shadow: 0 1px 5px #000; }
-.route-progress { position: absolute; left: clamp(22px, 4vw, 64px); right: clamp(22px, 4vw, 64px); bottom: 52px; height: 2px; background: #f8ead330; }
+.keyboard-hint { position: absolute; z-index: 3; bottom: 22px; left: clamp(22px, 4vw, 64px); margin: 0; font-size: 11px; letter-spacing: .06em; opacity: .8; text-shadow: 0 1px 5px #000; }
+.route-progress { position: absolute; z-index: 3; left: clamp(22px, 4vw, 64px); right: clamp(22px, 4vw, 64px); bottom: 52px; height: 2px; background: #f8ead330; }
 .route-progress::before { content: ''; display: block; width: var(--progress, 0%); height: 100%; background: #d3d4c3; }
-.touch-controls { display: none; position: absolute; bottom: 18px; right: 20px; gap: 12px; }
-.touch-controls button { width: 48px; height: 42px; border: 1px solid #ffffff50; background: #17233a90; border-radius: 6px; color: white; font-size: 22px; touch-action: none; }
-@media (pointer: coarse) { .touch-controls { display: flex; } .route-progress { bottom: 76px; } }
-@media (prefers-reduced-motion: reduce) { .street-world, .pixel-character { will-change: auto; } }
-
-.character-front { display: block; width: 100%; height: 100%; object-fit: contain; }
-.character-walk { display: none; width: 400%; max-width: none; height: 100%; image-rendering: pixelated; }
-.pixel-character.is-side .character-front { display: none; }
-.pixel-character.is-side .character-walk { display: block; }
-.street-3d { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.has-3d-street .street-world { visibility: hidden; }
-
-/* A subdued film-like dawn, without blurring the pixel character. */
-#app::before { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: .045; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Cpath fill='%23ffffff' filter='url(%23n)' d='M0 0h160v160H0z'/%3E%3C/svg%3E"); mix-blend-mode: soft-light; }
-#app::after { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; background: radial-gradient(ellipse at 50% 42%, transparent 35%, rgb(6 8 18 / calc(.48 - var(--morning, 0) * .28)) 100%); }
-.pixel-character { z-index: 1; filter: brightness(calc(.72 + var(--morning, 0) * .28)) saturate(.8); }
-.location, .keyboard-hint, .route-progress, .touch-controls { z-index: 3; }
-
-.pixel-character { opacity: calc(1 - var(--immersion, 0)); cursor: pointer; }
-.close-head { position: absolute; z-index: 1; left: 50%; bottom: -60px; width: clamp(160px, 24vw, 290px); height: clamp(175px, 26vw, 315px); pointer-events: none; opacity: var(--immersion, 0); translate: 0 calc((1 - var(--immersion, 0)) * 110px); filter: brightness(calc(.72 + var(--morning, 0) * .28)); }
-.close-head svg { width: 100%; height: 100%; }
-.view-button { position: absolute; z-index: 4; bottom: 80px; left: 50%; transform: translateX(-50%); border: 1px solid #eee6d655; border-radius: 30px; padding: 11px 19px; background: #20264085; color: #f5f0e7; font: inherit; font-size: 12px; cursor: pointer; backdrop-filter: blur(8px); }
-.is-immersed .view-button { left: auto; right: 24px; top: 28px; bottom: auto; transform: none; }
-.is-immersed .pixel-character { pointer-events: none; }
-.view-button:focus-visible { outline: 2px solid #eee6d6; outline-offset: 4px; }
-@media (pointer: coarse) { .view-button { bottom: 105px; } .is-immersed .view-button { top: 110px; bottom: auto; } }
-
-.photo-background { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; pointer-events: none; user-select: none; }
-.has-photo-background .street-world { visibility: hidden; }
-.has-photo-background::before, .has-photo-background::after { display: none; }
-
-/* The rear sprite walks into the photograph toward its vanishing point. */
-.has-photo-background .close-head { bottom: auto; width: min(156px, 20.4dvh); height: min(260px, 34dvh); translate: none; transform-origin: 50% 100%; opacity: 0; }
-.has-photo-background .close-head img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
-.has-photo-background .pixel-character { opacity: 1; bottom: 12%; }
-.has-photo-background.is-immersed .pixel-character { opacity: 0; }
-.has-photo-background.is-immersed .close-head { opacity: 1; }
+.walk-actions { position: absolute; z-index: 4; right: 24px; top: 28px; display: flex; gap: 8px; }
+.walk-actions button { border: 1px solid #eee6d655; border-radius: 30px; padding: 11px 16px; background: #20264085; color: #f5f0e7; font: inherit; font-size: 12px; cursor: pointer; backdrop-filter: blur(8px); }
+.walk-reset { opacity: .8; }
+button:focus-visible, .route-character:focus-visible { outline: 2px solid #eee6d6; outline-offset: 4px; }
+.touch-controls { display: none; position: absolute; z-index: 4; bottom: 18px; right: 20px; gap: 8px; }
+.touch-controls button { width: 40px; height: 42px; border: 1px solid #ffffff50; background: #17233a90; border-radius: 6px; color: white; font-size: 22px; touch-action: none; }
+@media (max-width: 650px) { .walk-actions { top: 135px; left: 22px; right: auto; } }
+@media (pointer: coarse) { .touch-controls { display: flex; } .route-progress { bottom: 76px; } .keyboard-hint { bottom: 82px; font-size: 10px; } }
+@media (prefers-reduced-motion: reduce) { .route-photo, .route-character { will-change: auto; } }
