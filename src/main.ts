@@ -74,14 +74,14 @@ function paint(walking = false) {
   let px = started ? mix(scene.start[0], scene.end[0], t) : .5
   if (innerWidth / innerHeight < 1 && scene.name === '연희로27다길') px = mix(.53, .43, t)
   const py = started ? mix(scene.start[1], scene.end[1], t) : .88
-  const side = started ? scene.view === 'side' : initialFacing !== 0
+  const side = initialFacing !== 0 || (started && scene.view === 'side')
   character.dataset.view = side ? 'side' : started ? 'back' : 'front'
-  character.style.left = `${clamp(px + lateral * .07 * scale, .12, .88) * 100}%`
+  character.style.left = `${clamp(px + lateral * .07, .08, .92) * 100}%`
   character.style.top = `${py * 100}%`
   const sway = walking && !reducedMotion.matches ? Math.sin(stepTime * 8) * .7 : 0
   character.style.transform = `translate(-50%, -100%) scale(${scale}) translateY(${bounce}px) rotate(${sway}deg)`
   const sideHolder = character.querySelector<HTMLElement>('.route-side')!
-  sideHolder.style.transform = `scaleX(${started ? -1 : initialFacing || 1})`
+  sideHolder.style.transform = `scaleX(${initialFacing || (started ? -1 : 1)})`
   const sprite = walking && !reducedMotion.matches ? [1, 2, 3, 2][Math.floor(stepTime * 8) % 4]! : 0
   sideHolder.querySelector('img')!.style.transform = `translateX(${-sprite * 25}%)`
   if (stage !== index) {
@@ -101,6 +101,14 @@ function paint(walking = false) {
   toggle.textContent = !started ? '클릭해서 골목 안으로 걷기' : position >= walkRoute.length ? '여기까지 걸었어요 · 다시 걷기' : automatic ? '일시 정지' : '계속 걷기'
 }
 function ensureFrame() { if (!frame) frame = requestAnimationFrame(update) }
+function pxForMovement() {
+  if (!started) return .5
+  const index = Math.min(walkRoute.length - 1, Math.floor(position))
+  const scene = walkRoute[index]!
+  const t = clamp(position - index)
+  if (innerWidth / innerHeight < 1 && scene.name === '연희로27다길') return mix(.53, .43, t)
+  return mix(scene.start[0], scene.end[0], t)
+}
 function update(time: number) {
   frame = 0
   const dt = lastTime ? clamp((time - lastTime) / 1000, 0, .04) : 1 / 60
@@ -108,11 +116,11 @@ function update(time: number) {
   const forward = axis(['ArrowUp', 'KeyW'], ['ArrowDown', 'KeyS'])
   const sideways = axis(['ArrowRight', 'KeyD'], ['ArrowLeft', 'KeyA'])
   const previous = position, previousLateral = lateral
-  if (forward) started = true
+  if (forward) { started = true; initialFacing = 0 }
   const speed = forward && sideways ? Math.SQRT1_2 : 1
   position = clamp(position + (automatic ? .105 : forward * .13 * speed) * dt, 0, walkRoute.length)
-  lateral = clamp(lateral + sideways * dt * 1.4 * speed, -1.7, 1.7)
-  if (!started && sideways) initialFacing = sideways
+  lateral = clamp(lateral + sideways * dt * 2.8 * speed, (.08 - pxForMovement()) / .07, (.92 - pxForMovement()) / .07)
+  if (sideways) initialFacing = sideways
   if (position >= walkRoute.length) automatic = false
   const walking = position !== previous || lateral !== previousLateral
   if (walking) stepTime += dt
@@ -122,7 +130,7 @@ function update(time: number) {
 }
 function toggleWalk() {
   if (position >= walkRoute.length) { position = 0; lateral = 0 }
-  started = true; automatic = !automatic
+  started = true; initialFacing = 0; automatic = !automatic
   paint(); if (automatic) ensureFrame()
 }
 function stopInput() {
