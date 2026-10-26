@@ -7,3 +7,5 @@ The four original backgrounds reinterpret the reference video's blue-hour mood. 
 Run npm install, then npm run build for TypeScript checking and the production build. npm run dev is available when requested. GitHub Pages deploys main automatically; Vite base is /neon/.
 
 Original reference: https://www.youtube.com/watch?v=0VsAzkowpfw
+
+The default environment now uses real Three.js geometry for buildings, sidewalks, road surfaces, bridge, river, windows, trees, poles, and overhead wires. Static geometry is batched by material. The original pixel character and its side-view walking animation remain unchanged. The illustrated panoramas are retained as a fallback when WebGL is unavailable. The route is an artistic interpretation, not an exact survey of the neighborhood.

@@ -1,4 +1,5 @@
 import './style.css'
+import { createStreet3D } from './street-3d'
 import characterUrl from './assets/mint-hoodie-character.png'
 import walkingUrl from './assets/mint-hoodie-walk.png'
 import bridgeUrl from './assets/route-bridge.jpg'
@@ -48,6 +49,11 @@ const touch = document.createElement('div')
 touch.className = 'touch-controls'
 touch.innerHTML = '<button type="button" data-key="ArrowLeft" aria-label="왼쪽으로 이동">←</button><button type="button" data-key="ArrowRight" aria-label="오른쪽으로 이동">→</button>'
 app.append(world, character, heading, progress, hint, touch)
+let street3D: ReturnType<typeof createStreet3D> | undefined
+try {
+  street3D = createStreet3D(app)
+  app.classList.add('has-3d-street')
+} catch { /* Keep the illustrated route available without WebGL. */ }
 
 const held = new Set<string>()
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
@@ -58,8 +64,11 @@ const direction = () => Number(held.has('ArrowRight') || held.has('KeyD')) - Num
 function paint(walking = false) {
   const camera = Math.max(0, Math.min(worldWidth - innerWidth, x - innerWidth * .45))
   const bounce = walking && !reducedMotion.matches ? -Math.abs(Math.sin(stepTime * 12)) * 2 : 0
+  const projected = street3D?.render(x, camera, sectionWidth, worldWidth)
+  const screenX = projected ? Math.max(characterWidth / 2 + 20, Math.min(innerWidth - characterWidth / 2 - 20, projected.x)) : x - camera
+  if (projected) character.style.bottom = `${innerHeight - projected.y - 8}px`
   world.style.transform = `translate3d(${-camera}px, 0, 0)`
-  character.style.transform = `translate3d(${x - camera - characterWidth / 2}px, ${bounce}px, 0) scaleX(${facing})`
+  character.style.transform = `translate3d(${screenX - characterWidth / 2}px, ${bounce}px, 0) scaleX(${facing})`
   character.classList.toggle('is-side', hasTurned && walkSheet.complete && walkSheet.naturalWidth > 0)
   const sprite = walking && !reducedMotion.matches ? [1, 2, 3, 2][Math.floor(stepTime * 8) % 4]! : 0
   if (sprite !== drawnSprite) {
