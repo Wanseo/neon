@@ -1,7 +1,7 @@
 import './style.css'
 import { createStreet3D } from './street-3d'
 import characterUrl from './assets/mint-hoodie-character.png'
-import walkingUrl from './assets/mint-hoodie-walk.png'
+import walkingUrl from './assets/mint-hoodie-walk-slouched.png'
 import bridgeUrl from './assets/route-bridge.jpg'
 import mapoUrl from './assets/route-mapo.jpg'
 import roadUrl from './assets/route-yeonhui-road.jpg'
