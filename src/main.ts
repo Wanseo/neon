@@ -68,15 +68,15 @@ function paint(walking = false) {
     photo.style.opacity = String(i === index ? 1 : i === index + 1 ? fade : 0)
     const local = i === index ? t : 0
     const pan = walkRoute[i]!.pan
-    const followZoom = started ? .12 + local * .18 : 0
+    const followZoom = started ? .06 + local * .1 : 0
     const cameraShift = started ? -lateral * 1.8 : 0
-    photo.style.transformOrigin = `${plate.focus * 100}% 58%`
+    photo.style.transformOrigin = `${plate.focus * 100}% 64%`
     photo.style.transform = `scale(${1 + pan * 2 + followZoom}) translateX(${cameraShift + (pan ? (local - .5) * pan * 100 : 0)}%)`
   })
   const bounce = walking && !reducedMotion.matches ? -Math.abs(Math.sin(stepTime * 11)) * 2 : 0
-  const scale = started ? 1.04 : 1
+  const scale = started ? .7 : .76
   // Keep the actor on the visible pavement even when the photo is cropped on mobile.
-  const py = started ? 1.12 : .88
+  const py = started ? .79 : .82
   character.dataset.view = started ? 'back' : 'front'
   character.style.left = '50%'
   character.style.top = `${py * 100}%`

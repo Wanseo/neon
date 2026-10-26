@@ -4,7 +4,7 @@ import shop from './assets/yeonhui-shopfront.png'
 import alley from './assets/yeonhui-alley-entrance.png'
 import continuation from './assets/yeonhui-route-continuation.png'
 import storefronts from './assets/yeonhui-storefronts.png'
-import pixelAtlas from './assets/yeonhui-pixel-atlas.png'
+import pixelAtlas from './assets/yeonhui-pixel-overhead.png'
 
 // Reference order supplied by the user. Append the next photographed stretch here.
 // Coordinates are normalized to each plate; they describe staging, not map surveying.
