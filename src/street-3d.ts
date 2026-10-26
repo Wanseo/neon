@@ -14,7 +14,7 @@ export function createStreet3D(host: HTMLElement) {
   scene.background = new THREE.Color(0x263f80)
   const fog = new THREE.FogExp2(0x28334e, .035)
   scene.fog = fog
-  const camera = new THREE.OrthographicCamera(-6, 6, 4, -4, .1, 160)
+  const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, .08, 180)
   const ambient = new THREE.HemisphereLight(0x8997d4, 0x171b29, .85)
   scene.add(ambient)
   const moon = new THREE.DirectionalLight(0xa6b5ff, .7)
@@ -186,7 +186,7 @@ export function createStreet3D(host: HTMLElement) {
       const height = 3 + random() * 6
       box(x, height / 2, -19 - random() * 8, 2.2, height, 2, 0x35466e)
     }
-    for (let x = section * .65; x < total + 10; ) {
+    for (let x = -8; x < total + 20; ) {
       const width = 2.5 + random() * 1.7
       const zone = Math.floor(x / section)
       house(x + width / 2, width, zone >= 3 ? 2.8 + random() : 3.2 + random() * 2, zone === 1 || (zone === 2 && random() > .4), zone >= 3)
@@ -203,6 +203,20 @@ export function createStreet3D(host: HTMLElement) {
       const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(x, 5.8, 2.95), new THREE.Vector3(x + 5, 5.25, 2.95), new THREE.Vector3(x + 10, 5.8, 2.95)])
       const cable = new THREE.Mesh(new THREE.TubeGeometry(curve, 10, .015, 3, false), material(0x20283c)); city.add(cable)
     }
+    // Opposite facades face inward across the same street.
+    const opposite = new THREE.Group()
+    for (const child of [...city.children]) {
+      const mesh = child as THREE.Mesh
+      if (mesh.position.z > 3.3 || mesh.position.z < -2 || mesh.position.y < .2) continue
+      const copy = mesh.clone()
+      copy.geometry = mesh.geometry.clone()
+      copy.position.z = 14.4 - mesh.position.z
+      copy.rotation.y = Math.PI
+      opposite.add(copy)
+    }
+    for (const child of [...opposite.children]) { opposite.remove(child); city.add(child) }
+    // Continuous paving under the camera and between both building rows.
+    box(total / 2, -.15, 7.2, total + 60, .12, 12, 0x30394f)
     // Static architecture shares a small set of draw calls, even on long walks.
     city.updateMatrixWorld(true)
     const batches = new Map<THREE.Material, THREE.BufferGeometry[]>()
@@ -225,14 +239,12 @@ export function createStreet3D(host: HTMLElement) {
   const dawnColor = new THREE.Color(0x28334e), dayColor = new THREE.Color(0xb2bcc0)
   function resize() {
     renderer.setSize(innerWidth, innerHeight, false)
-    const scale = Math.max(innerHeight, 1000) / innerHeight
-    camera.left = -innerWidth / 200 * scale; camera.right = innerWidth / 200 * scale
-    camera.top = innerHeight / 200 * scale; camera.bottom = -innerHeight / 200 * scale
+    camera.aspect = innerWidth / innerHeight
     camera.updateProjectionMatrix()
   }
   resize(); window.addEventListener('resize', resize)
   return {
-    render(playerX: number, cameraX: number, sectionPixels: number, totalPixels: number) {
+    render(playerX: number, cameraX: number, sectionPixels: number, totalPixels: number, immersion = 0, walkTime = 0) {
       const total = totalPixels / 100, section = sectionPixels / 100
       if (Math.abs(total - builtWidth) > .01) { rebuild(total, section); builtWidth = total }
       const center = (cameraX + innerWidth / 2) / 100
@@ -253,18 +265,13 @@ export function createStreet3D(host: HTMLElement) {
       cool.emissiveIntensity = .65 * (1 - morning * .65)
       host.style.setProperty('--morning', String(morning))
       host.dataset.daylight = morning.toFixed(3)
-      const scale = Math.max(innerHeight, 1000) / innerHeight
-      camera.position.set(center + 2.6, 4.5, 12)
-      camera.lookAt(center, 0, 0)
+      const player = playerX / 100
+      const bob = Math.sin(walkTime * 10) * .025 * immersion
+      camera.position.set(player + 7 * (1 - immersion) - 1.1 * immersion, 2.4 - .7 * immersion + bob, 7.2 + 5 * (1 - immersion))
+      camera.lookAt(player + 14 * immersion, 1.55 + bob, 7.2)
       camera.updateMatrixWorld()
-      camera.top = innerHeight / 200 * scale; camera.bottom = -innerHeight / 200 * scale
-      camera.updateProjectionMatrix()
-      point.set(playerX / 100, .19, 4.2).project(camera)
-      const verticalShift = (innerHeight * .81 - (1 - point.y) / 2 * innerHeight) / 100 * scale
-      camera.top += verticalShift; camera.bottom += verticalShift
-      camera.updateProjectionMatrix()
       renderer.render(scene, camera)
-      point.set(playerX / 100, .19, 4.2).project(camera)
+      point.set(playerX / 100, .19, 7.2).project(camera)
       return { x: (point.x + 1) / 2 * innerWidth, y: (1 - point.y) / 2 * innerHeight }
     },
   }

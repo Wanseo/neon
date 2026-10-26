@@ -35,6 +35,14 @@ const walkSheet = document.createElement('img')
 walkSheet.className = 'character-walk'
 walkSheet.src = walkingUrl; walkSheet.alt = ''; walkSheet.draggable = false
 character.append(front, walkSheet)
+const closeHead = document.createElement('div')
+closeHead.className = 'close-head'
+closeHead.setAttribute('aria-hidden', 'true')
+closeHead.innerHTML = `<svg viewBox="0 0 48 52" shape-rendering="crispEdges"><path fill="#232a46" d="M12 2h24v4h6v8h4v30h-4v8H6v-8H2V14h4V6h6z"/><path fill="#4c5892" d="M12 5h24v4h5v9h2v26h-5v8H10v-8H5V18h2V9h5z"/><path fill="#6271a5" d="M13 7h21v3H13zM9 11h4v23H9z"/><path fill="#384572" d="M34 12h5v28h-5v5H14v-4h17v-6h3z"/><path fill="#829e98" d="M17 4h15v3H17z"/></svg>`
+const viewButton = document.createElement('button')
+viewButton.className = 'view-button'
+viewButton.textContent = '클릭해서 함께 걷기'
+app.append(closeHead, viewButton)
 const heading = document.createElement('header')
 heading.className = 'location'
 heading.innerHTML = '<p class="journey">양화대교에서 연희동까지</p><h1></h1><p class="place-description"></p>'
@@ -60,13 +68,39 @@ const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
 let x = innerWidth * .23, facing = 1, frame = 0, lastTime = 0, stepTime = 0
 let worldWidth = 0, sectionWidth = 0, characterWidth = 0, stage = -1, progressValue = -1
 let hasTurned = false, drawnSprite = -1
-const direction = () => Number(held.has('ArrowRight') || held.has('KeyD')) - Number(held.has('ArrowLeft') || held.has('KeyA'))
+let immersed = false, immersion = 0, transitionFrame = 0, transitionStart = 0
+function switchView() {
+  if (!street3D) return
+  immersed = !immersed
+  release()
+  app.classList.toggle('is-immersed', immersed)
+  viewButton.textContent = immersed ? '전체 모습 보기' : '클릭해서 함께 걷기'
+  hint.textContent = immersed ? '↑ / W 앞으로 · ↓ / S 뒤로' : '← → / A D 이동 · ↓ 정면'
+  cancelAnimationFrame(transitionFrame)
+  transitionStart = performance.now()
+  const from = immersion, to = Number(immersed)
+  const animate = (time: number) => {
+    const t = reducedMotion.matches ? 1 : Math.max(0, Math.min(1, (time - transitionStart) / 1200))
+    immersion = from + (to - from) * (t * t * (3 - 2 * t))
+    app.style.setProperty('--immersion', String(immersion))
+    paint()
+    if (t < 1) transitionFrame = requestAnimationFrame(animate)
+  }
+  transitionFrame = requestAnimationFrame(animate)
+}
+viewButton.addEventListener('click', switchView)
+character.addEventListener('click', switchView)
+app.addEventListener('click', event => {
+  if (!immersed && event.target === app) switchView()
+})
+const direction = () => immersed ? Number(held.has('ArrowUp') || held.has('KeyW') || held.has('ArrowRight') || held.has('KeyD')) - Number(held.has('ArrowDown') || held.has('KeyS') || held.has('ArrowLeft') || held.has('KeyA')) : Number(held.has('ArrowRight') || held.has('KeyD')) - Number(held.has('ArrowLeft') || held.has('KeyA'))
 function paint(walking = false) {
   const camera = Math.max(0, Math.min(worldWidth - innerWidth, x - innerWidth * .45))
   const bounce = walking && !reducedMotion.matches ? -Math.abs(Math.sin(stepTime * 12)) * 2 : 0
-  const projected = street3D?.render(x, camera, sectionWidth, worldWidth)
+  const projected = street3D?.render(x, camera, sectionWidth, worldWidth, immersion, stepTime)
   const screenX = projected ? Math.max(characterWidth / 2 + 20, Math.min(innerWidth - characterWidth / 2 - 20, projected.x)) : x - camera
   if (projected) character.style.bottom = `${innerHeight - projected.y - 8}px`
+  closeHead.style.transform = `translateX(-50%) translateY(${bounce}px)`
   world.style.transform = `translate3d(${-camera}px, 0, 0)`
   character.style.transform = `translate3d(${screenX - characterWidth / 2}px, ${bounce}px, 0) scaleX(${facing})`
   character.classList.toggle('is-side', hasTurned && walkSheet.complete && walkSheet.naturalWidth > 0)
@@ -120,10 +154,10 @@ function release() {
 }
 function press(key: string) { held.add(key); if (!frame) frame = requestAnimationFrame(move) }
 window.addEventListener('keydown', event => {
-  if (!['ArrowLeft', 'ArrowRight', 'ArrowDown', 'KeyA', 'KeyD'].includes(event.code) || event.metaKey || event.ctrlKey || event.altKey) return
+  if (!['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', 'KeyW', 'KeyS', 'KeyA', 'KeyD'].includes(event.code) || event.metaKey || event.ctrlKey || event.altKey) return
   if (event.target instanceof HTMLElement && (event.target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName))) return
   event.preventDefault()
-  if (event.code === 'ArrowDown') {
+  if (event.code === 'ArrowDown' && !immersed) {
     hasTurned = false; facing = 1
     release()
     return
