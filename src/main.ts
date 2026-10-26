@@ -1,5 +1,6 @@
 import './style.css'
 import characterUrl from './assets/mint-hoodie-character.png'
+import walkingUrl from './assets/mint-hoodie-walk.png'
 import bridgeUrl from './assets/route-bridge.jpg'
 import mapoUrl from './assets/route-mapo.jpg'
 import roadUrl from './assets/route-yeonhui-road.jpg'
@@ -22,11 +23,17 @@ for (const place of locations) {
   image.src = place.image; image.alt = ''; image.draggable = false
   scene.append(image); world.append(scene)
 }
-const character = document.createElement('img')
+const character = document.createElement('div')
 character.className = 'pixel-character'
-character.src = characterUrl
-character.alt = '민트색 머리와 파란 후드 차림으로 연희동을 향해 걷는 픽셀 캐릭터'
-character.draggable = false
+character.setAttribute('role', 'img')
+character.setAttribute('aria-label', '민트색 머리와 파란 후드 차림으로 연희동을 향해 걷는 픽셀 캐릭터')
+const front = document.createElement('img')
+front.className = 'character-front'
+front.src = characterUrl; front.alt = ''; front.draggable = false
+const walkSheet = document.createElement('img')
+walkSheet.className = 'character-walk'
+walkSheet.src = walkingUrl; walkSheet.alt = ''; walkSheet.draggable = false
+character.append(front, walkSheet)
 const heading = document.createElement('header')
 heading.className = 'location'
 heading.innerHTML = '<p class="journey">양화대교에서 연희동까지</p><h1></h1><p class="place-description"></p>'
@@ -46,12 +53,19 @@ const held = new Set<string>()
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
 let x = innerWidth * .23, facing = 1, frame = 0, lastTime = 0, stepTime = 0
 let worldWidth = 0, sectionWidth = 0, characterWidth = 0, stage = -1, progressValue = -1
+let hasTurned = false, drawnSprite = -1
 const direction = () => Number(held.has('ArrowRight') || held.has('KeyD')) - Number(held.has('ArrowLeft') || held.has('KeyA'))
 function paint(walking = false) {
   const camera = Math.max(0, Math.min(worldWidth - innerWidth, x - innerWidth * .45))
   const bounce = walking && !reducedMotion.matches ? -Math.abs(Math.sin(stepTime * 12)) * 2 : 0
   world.style.transform = `translate3d(${-camera}px, 0, 0)`
   character.style.transform = `translate3d(${x - camera - characterWidth / 2}px, ${bounce}px, 0) scaleX(${facing})`
+  character.classList.toggle('is-side', hasTurned && walkSheet.complete && walkSheet.naturalWidth > 0)
+  const sprite = walking && !reducedMotion.matches ? [1, 2, 3, 2][Math.floor(stepTime * 8) % 4]! : 0
+  if (sprite !== drawnSprite) {
+    walkSheet.style.transform = `translateX(${-sprite * 25}%)`
+    drawnSprite = sprite
+  }
   const nextStage = Math.min(locations.length - 1, Math.max(0, Math.floor(x / sectionWidth)))
   if (nextStage !== stage) {
     stage = nextStage
@@ -84,6 +98,7 @@ function move(time: number) {
   const axis = direction()
   if (!axis) { lastTime = 0; stepTime = 0; paint(); return }
   facing = axis
+  hasTurned = true
   const previous = x
   x = Math.max(characterWidth / 2 + 20, Math.min(worldWidth - characterWidth / 2 - 20, x + axis * 290 * dt))
   stepTime += dt
@@ -108,6 +123,7 @@ for (const button of touch.querySelectorAll<HTMLButtonElement>('button')) {
 window.addEventListener('blur', release)
 document.addEventListener('visibilitychange', () => { if (document.hidden) release() })
 window.addEventListener('resize', measure)
-character.addEventListener('load', measure)
+front.addEventListener('load', measure)
+walkSheet.addEventListener('load', () => paint())
 new ResizeObserver(measure).observe(character)
 measure()

@@ -6,7 +6,7 @@ body { overflow: hidden; font-family: Arial, 'Apple SD Gothic Neo', sans-serif; 
 .street-section { position: relative; flex: 0 0 var(--section-width, 100vw); height: 100%; }
 .street-section img { display: block; width: 100%; height: 100%; object-fit: fill; image-rendering: pixelated; user-select: none; }
 .street-section + .street-section::before { content: ''; position: absolute; left: -20px; width: 40px; top: 0; bottom: 0; background: linear-gradient(90deg, transparent, #252b4b28, transparent); pointer-events: none; }
-.pixel-character { position: absolute; left: 0; bottom: calc(18% - 8px); display: block; height: min(260px, 34dvh); max-width: 30vw; object-fit: contain; image-rendering: pixelated; user-select: none; will-change: transform; filter: brightness(.82) saturate(.85); }
+.pixel-character { position: absolute; left: 0; bottom: calc(18% - 8px); display: block; height: min(260px, 34dvh); width: min(156px, 20.4dvh); max-width: 30vw; overflow: hidden; image-rendering: pixelated; user-select: none; will-change: transform; filter: brightness(.82) saturate(.85); }
 .location { position: absolute; top: max(28px, env(safe-area-inset-top)); left: clamp(22px, 4vw, 64px); pointer-events: none; text-shadow: 0 2px 12px #0a102e; }
 .journey { margin: 0 0 12px; font-size: 10px; letter-spacing: .18em; opacity: .75; }
 h1 { margin: 0; font-size: clamp(22px, 3vw, 34px); font-weight: 500; letter-spacing: -.05em; }
@@ -18,3 +18,8 @@ h1 { margin: 0; font-size: clamp(22px, 3vw, 34px); font-weight: 500; letter-spac
 .touch-controls button { width: 48px; height: 42px; border: 1px solid #ffffff50; background: #17233a90; border-radius: 6px; color: white; font-size: 22px; touch-action: none; }
 @media (pointer: coarse) { .touch-controls { display: flex; } .route-progress { bottom: 76px; } }
 @media (prefers-reduced-motion: reduce) { .street-world, .pixel-character { will-change: auto; } }
+
+.character-front { display: block; width: 100%; height: 100%; object-fit: contain; }
+.character-walk { display: none; width: 400%; max-width: none; height: 100%; image-rendering: pixelated; }
+.pixel-character.is-side .character-front { display: none; }
+.pixel-character.is-side .character-walk { display: block; }
