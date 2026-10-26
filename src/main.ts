@@ -46,6 +46,7 @@ let position = 0, lateral = 0, started = false, automatic = false
 let frame = 0, lastTime = 0, stepTime = 0, stage = -1, lastPercent = -1
 let initialFacing = 0
 const clamp = (n: number, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, n))
+const walkingSpeed = 1.7
 const axis = (positive: string[], negative: string[]) => Number(positive.some(k => held.has(k))) - Number(negative.some(k => held.has(k)))
 
 function paint(walking = false) {
@@ -111,12 +112,12 @@ function update(time: number) {
   const previous = position, previousLateral = lateral
   if (forward) { started = true; if (!sideways) initialFacing = 0 }
   const speed = forward && sideways ? Math.SQRT1_2 : 1
-  position = clamp(position + (automatic ? .105 : forward * .13 * speed) * dt, 0, walkRoute.length)
-  lateral = clamp(lateral + sideways * dt * 2.8 * speed, -3, 3)
+  position = clamp(position + (automatic ? .105 : forward * .13 * speed) * dt * walkingSpeed, 0, walkRoute.length)
+  lateral = clamp(lateral + sideways * dt * 2.8 * speed * walkingSpeed, -3, 3)
   if (sideways) initialFacing = sideways
   if (position >= walkRoute.length) automatic = false
   const walking = position !== previous || lateral !== previousLateral
-  if (walking) stepTime += dt
+  if (walking) stepTime += dt * walkingSpeed
   paint(walking)
   if (automatic || held.size) ensureFrame()
   else lastTime = 0
