@@ -44,7 +44,7 @@ progress.setAttribute('aria-label', '산책 경로 진행률')
 progress.setAttribute('role', 'progressbar')
 progress.setAttribute('aria-valuemin', '0'); progress.setAttribute('aria-valuemax', '100')
 const hint = document.createElement('p')
-hint.className = 'keyboard-hint'; hint.textContent = '← → / A D  이동'
+hint.className = 'keyboard-hint'; hint.textContent = '← → / A D  이동 · ↓ 정면'
 const touch = document.createElement('div')
 touch.className = 'touch-controls'
 touch.innerHTML = '<button type="button" data-key="ArrowLeft" aria-label="왼쪽으로 이동">←</button><button type="button" data-key="ArrowRight" aria-label="오른쪽으로 이동">→</button>'
@@ -120,9 +120,15 @@ function release() {
 }
 function press(key: string) { held.add(key); if (!frame) frame = requestAnimationFrame(move) }
 window.addEventListener('keydown', event => {
-  if (!['ArrowLeft', 'ArrowRight', 'KeyA', 'KeyD'].includes(event.code) || event.metaKey || event.ctrlKey || event.altKey) return
+  if (!['ArrowLeft', 'ArrowRight', 'ArrowDown', 'KeyA', 'KeyD'].includes(event.code) || event.metaKey || event.ctrlKey || event.altKey) return
   if (event.target instanceof HTMLElement && (event.target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName))) return
-  event.preventDefault(); press(event.code)
+  event.preventDefault()
+  if (event.code === 'ArrowDown') {
+    hasTurned = false; facing = 1
+    release()
+    return
+  }
+  press(event.code)
 })
 window.addEventListener('keyup', event => { held.delete(event.code); if (!held.size) release() })
 for (const button of touch.querySelectorAll<HTMLButtonElement>('button')) {
