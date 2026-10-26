@@ -26,3 +26,12 @@ button:focus-visible, .route-character:focus-visible { outline: 2px solid #eee6d
 @media (prefers-reduced-motion: reduce) { .route-photo, .route-character { will-change: auto; } }
 .route-photo { overflow: hidden; }
 .route-photo img { position: absolute; max-width: none; user-select: none; }
+.music-panel { position: absolute; z-index: 5; right: 24px; bottom: 82px; width: 320px; color: #f5f0e7; }
+.music-video { width: 100%; height: 200px; background: #141722; }
+.music-video iframe { display: block; width: 100%; height: 200px; border: 0; }
+.music-caption { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 11px; background: #192036dd; border: 1px solid #eee6d644; }
+.music-caption a { color: inherit; font-size: 11px; text-decoration: none; }
+.music-caption button { border: 0; border-radius: 12px; padding: 6px 9px; color: inherit; background: #ffffff16; font: inherit; font-size: 11px; cursor: pointer; }
+.music-status { margin: 0; padding: 5px 10px; background: #192036dd; font-size: 10px; }
+.music-status:empty { display: none; }
+@media (max-width: 650px) { .music-panel { right: 16px; bottom: 100px; width: 240px; } }
