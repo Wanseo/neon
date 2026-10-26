@@ -46,7 +46,6 @@ let position = 0, lateral = 0, started = false, automatic = false
 let frame = 0, lastTime = 0, stepTime = 0, stage = -1, lastPercent = -1
 let initialFacing = 0
 const clamp = (n: number, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, n))
-const mix = (a: number, b: number, t: number) => a + (b - a) * t
 const axis = (positive: string[], negative: string[]) => Number(positive.some(k => held.has(k))) - Number(negative.some(k => held.has(k)))
 
 function paint(walking = false) {
@@ -68,21 +67,20 @@ function paint(walking = false) {
     photo.style.opacity = String(i === index ? 1 : i === index + 1 ? fade : 0)
     const local = i === index ? t : 0
     const pan = walkRoute[i]!.pan
-    photo.style.transform = `scale(${1 + pan * 2}) translateX(${pan ? (local - .5) * pan * 100 : 0}%)`
+    const followZoom = started ? .12 + local * .18 : 0
+    const cameraShift = started ? -lateral * 1.8 : 0
+    photo.style.transformOrigin = `${plate.focus * 100}% 58%`
+    photo.style.transform = `scale(${1 + pan * 2 + followZoom}) translateX(${cameraShift + (pan ? (local - .5) * pan * 100 : 0)}%)`
   })
   const bounce = walking && !reducedMotion.matches ? -Math.abs(Math.sin(stepTime * 11)) * 2 : 0
-  const scale = started ? mix(scene.scale[0], scene.scale[1], t) : 1
+  const scale = started ? 1.04 : 1
   // Keep the actor on the visible pavement even when the photo is cropped on mobile.
-  let px = started ? mix(scene.start[0], scene.end[0], t) : .5
-  if (innerWidth / innerHeight < 1 && scene.name === '연희로27다길') px = mix(.53, .43, t)
-  const py = started ? mix(scene.start[1], scene.end[1], t) : .88
-  const side = initialFacing !== 0 || (started && scene.view === 'side')
-  character.dataset.view = side ? 'side' : started ? 'back' : 'front'
-  const edge = character.offsetWidth * scale / innerWidth / 2 + .02
-  character.style.left = `${clamp(px + lateral * .07, edge, 1 - edge) * 100}%`
+  const py = started ? 1.12 : .88
+  character.dataset.view = started ? 'back' : 'front'
+  character.style.left = '50%'
   character.style.top = `${py * 100}%`
   const sway = walking && !reducedMotion.matches ? Math.sin(stepTime * 8) * .7 : 0
-  character.style.transform = `translate(-50%, -100%) scale(${scale}) translateY(${bounce}px) rotate(${sway}deg)`
+  character.style.transform = `translate(-50%, -100%) scale(${scale}) translateY(${bounce}px) rotate(${sway + (started ? initialFacing * 2 : 0)}deg)`
   const sideHolder = character.querySelector<HTMLElement>('.route-side')!
   sideHolder.style.transform = `scaleX(${initialFacing || (started ? -1 : 1)})`
   const sprite = walking && !reducedMotion.matches ? [1, 2, 3, 2][Math.floor(stepTime * 8) % 4]! : 0
@@ -104,14 +102,6 @@ function paint(walking = false) {
   toggle.textContent = !started ? '클릭해서 골목 안으로 걷기' : position >= walkRoute.length ? '여기까지 걸었어요 · 다시 걷기' : automatic ? '일시 정지' : '계속 걷기'
 }
 function ensureFrame() { if (!frame) frame = requestAnimationFrame(update) }
-function pxForMovement() {
-  if (!started) return .5
-  const index = Math.min(walkRoute.length - 1, Math.floor(position))
-  const scene = walkRoute[index]!
-  const t = clamp(position - index)
-  if (innerWidth / innerHeight < 1 && scene.name === '연희로27다길') return mix(.53, .43, t)
-  return mix(scene.start[0], scene.end[0], t)
-}
 function update(time: number) {
   frame = 0
   const dt = lastTime ? clamp((time - lastTime) / 1000, 0, .04) : 1 / 60
@@ -122,11 +112,7 @@ function update(time: number) {
   if (forward) { started = true; if (!sideways) initialFacing = 0 }
   const speed = forward && sideways ? Math.SQRT1_2 : 1
   position = clamp(position + (automatic ? .105 : forward * .13 * speed) * dt, 0, walkRoute.length)
-  const sceneIndex = Math.min(walkRoute.length - 1, Math.floor(position))
-  const scene = walkRoute[sceneIndex]!
-  const size = started ? mix(scene.scale[0], scene.scale[1], clamp(position - sceneIndex)) : 1
-  const edge = character.offsetWidth * size / innerWidth / 2 + .02
-  lateral = clamp(lateral + sideways * dt * 2.8 * speed, (edge - pxForMovement()) / .07, (1 - edge - pxForMovement()) / .07)
+  lateral = clamp(lateral + sideways * dt * 2.8 * speed, -3, 3)
   if (sideways) initialFacing = sideways
   if (position >= walkRoute.length) automatic = false
   const walking = position !== previous || lateral !== previousLateral
@@ -155,9 +141,11 @@ function press(key: string) {
   automatic = false
   // Turn on keydown, before the first movement frame, even at a screen edge.
   if (key === 'ArrowLeft' || key === 'KeyA') {
+    started = true
     initialFacing = -1
     held.delete('ArrowRight'); held.delete('KeyD')
   } else if (key === 'ArrowRight' || key === 'KeyD') {
+    started = true
     initialFacing = 1
     held.delete('ArrowLeft'); held.delete('KeyA')
   }
