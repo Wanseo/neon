@@ -1,4 +1,5 @@
 import './style.css'
+import backUrl from './assets/mint-hoodie-back.png'
 import photoUrl from './assets/yeonhui-photo-background.png'
 import type { createStreet3D } from './street-3d'
 import characterUrl from './assets/mint-hoodie-front-slouched.png'
@@ -39,10 +40,10 @@ character.append(front, walkSheet)
 const closeHead = document.createElement('div')
 closeHead.className = 'close-head'
 closeHead.setAttribute('aria-hidden', 'true')
-closeHead.innerHTML = `<svg viewBox="0 0 48 52" shape-rendering="crispEdges"><path fill="#232a46" d="M12 2h24v4h6v8h4v30h-4v8H6v-8H2V14h4V6h6z"/><path fill="#4c5892" d="M12 5h24v4h5v9h2v26h-5v8H10v-8H5V18h2V9h5z"/><path fill="#6271a5" d="M13 7h21v3H13zM9 11h4v23H9z"/><path fill="#384572" d="M34 12h5v28h-5v5H14v-4h17v-6h3z"/><path fill="#829e98" d="M17 4h15v3H17z"/></svg>`
+closeHead.innerHTML = `<img src="${backUrl}" alt="" draggable="false">`
 const viewButton = document.createElement('button')
 viewButton.className = 'view-button'
-viewButton.textContent = '클릭해서 함께 걷기'
+viewButton.textContent = '클릭해서 골목 안으로 걷기'
 app.append(closeHead, viewButton)
 const heading = document.createElement('header')
 heading.className = 'location'
@@ -79,16 +80,17 @@ function switchView() {
   immersed = !immersed
   release()
   app.classList.toggle('is-immersed', immersed)
-  viewButton.textContent = immersed ? '전체 모습 보기' : '클릭해서 함께 걷기'
+  viewButton.textContent = immersed ? '처음 위치로 돌아오기' : '클릭해서 골목 안으로 걷기'
   hint.textContent = immersed ? '↑ ↓ 앞뒤 · ← → 좌우 / W A S D' : '← → / A D 이동 · ↓ 정면'
   cancelAnimationFrame(transitionFrame)
   transitionStart = performance.now()
   const from = immersion, to = Number(immersed)
   const animate = (time: number) => {
-    const t = reducedMotion.matches ? 1 : Math.max(0, Math.min(1, (time - transitionStart) / 1200))
+    const t = reducedMotion.matches ? 1 : Math.max(0, Math.min(1, (time - transitionStart) / (immersed ? 7000 : 1000)))
     immersion = from + (to - from) * (t * t * (3 - 2 * t))
     app.style.setProperty('--immersion', String(immersion))
-    paint()
+    stepTime = (time - transitionStart) / 1000
+    paint(t < 1)
     if (t < 1) transitionFrame = requestAnimationFrame(animate)
   }
   transitionFrame = requestAnimationFrame(animate)
@@ -105,10 +107,15 @@ function paint(walking = false) {
   const projected = street3D?.render(x, camera, sectionWidth, worldWidth, immersion, stepTime, lateral)
   const screenX = projected ? Math.max(characterWidth / 2 + 20, Math.min(innerWidth - characterWidth / 2 - 20, projected.x)) : x - camera
   if (projected) character.style.bottom = `${innerHeight - projected.y - 8}px`
-  photo.style.transform = `scale(${1 + immersion * .12}) translateX(${-lateral * immersion * 1.5}%)`
-  closeHead.style.transform = `translateX(-50%) translateY(${bounce}px)`
+  photo.style.transform = 'none'
+  const depthScale = 1 - immersion * .82
+  const depthX = innerWidth * (.5 - immersion * .015) + lateral * 55 * depthScale
+  const depthY = innerHeight * (.88 - immersion * .31)
+  closeHead.style.left = `${depthX}px`
+  closeHead.style.top = `${depthY}px`
+  closeHead.style.transform = `translate(-50%, -100%) scale(${depthScale}) translateY(${bounce}px) rotate(${walking && !reducedMotion.matches ? Math.sin(stepTime * 9) * 1.2 : 0}deg)`
   world.style.transform = `translate3d(${-camera}px, 0, 0)`
-  character.style.transform = `translate3d(${screenX - characterWidth / 2}px, ${bounce}px, 0) scaleX(${facing})`
+  character.style.transform = `translate3d(${(hasTurned ? screenX : innerWidth * .5) - characterWidth / 2}px, ${bounce}px, 0) scaleX(${facing})`
   character.classList.toggle('is-side', hasTurned && walkSheet.complete && walkSheet.naturalWidth > 0)
   const sprite = walking && !reducedMotion.matches ? [1, 2, 3, 2][Math.floor(stepTime * 8) % 4]! : 0
   if (sprite !== drawnSprite) {
@@ -153,6 +160,11 @@ function move(time: number) {
   const speed = axis && sideways ? Math.SQRT1_2 : 1
   lateral = Math.max(-1.7, Math.min(1.7, lateral + sideways * 1.8 * dt * speed))
   app.dataset.lateral = lateral.toFixed(3)
+  if (immersed && axis) {
+    cancelAnimationFrame(transitionFrame)
+    immersion = Math.max(0, Math.min(1, immersion + axis * dt * .12))
+    app.style.setProperty('--immersion', String(immersion))
+  }
   x = Math.max(characterWidth / 2 + 20, Math.min(worldWidth - characterWidth / 2 - 20, x + axis * 290 * dt * speed))
   stepTime += dt
   paint(x !== previous || lateral !== previousLateral)
