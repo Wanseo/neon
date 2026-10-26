@@ -25,3 +25,9 @@ h1 { margin: 0; font-size: clamp(22px, 3vw, 34px); font-weight: 500; letter-spac
 .pixel-character.is-side .character-walk { display: block; }
 .street-3d { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .has-3d-street .street-world { visibility: hidden; }
+
+/* A subdued film-like dawn, without blurring the pixel character. */
+#app::before { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: .045; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Cpath fill='%23ffffff' filter='url(%23n)' d='M0 0h160v160H0z'/%3E%3C/svg%3E"); mix-blend-mode: soft-light; }
+#app::after { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; background: radial-gradient(ellipse at 50% 42%, transparent 35%, rgb(6 8 18 / calc(.48 - var(--morning, 0) * .28)) 100%); }
+.pixel-character { z-index: 1; filter: brightness(calc(.72 + var(--morning, 0) * .28)) saturate(.8); }
+.location, .keyboard-hint, .route-progress, .touch-controls { z-index: 3; }

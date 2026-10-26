@@ -9,9 +9,9 @@ import yeonhuiUrl from './assets/route-yeonhui.jpg'
 
 const locations = [
   { name: '양화대교 북단', subtitle: '한강을 건너, 동네로', image: bridgeUrl },
-  { name: '합정 · 망원 일대', subtitle: '낮은 건물과 저녁 불빛 사이', image: mapoUrl },
+  { name: '합정 · 망원 일대', subtitle: '낮은 건물과 새벽 불빛 사이', image: mapoUrl },
   { name: '연희로', subtitle: '연희동으로 이어지는 길', image: roadUrl },
-  { name: '연희동', subtitle: '담장 너머로 저녁이 내려앉는 곳', image: yeonhuiUrl },
+  { name: '연희동', subtitle: '담장 너머로 아침이 찾아오는 곳', image: yeonhuiUrl },
 ]
 const app = document.querySelector<HTMLDivElement>('#app')!
 const world = document.createElement('div')

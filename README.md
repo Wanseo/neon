@@ -9,3 +9,5 @@ Run npm install, then npm run build for TypeScript checking and the production b
 Original reference: https://www.youtube.com/watch?v=0VsAzkowpfw
 
 The default environment now uses real Three.js geometry for buildings, sidewalks, road surfaces, bridge, river, windows, trees, poles, and overhead wires. Static geometry is batched by material. The original pixel character and its side-view walking animation remain unchanged. The illustrated panoramas are retained as a fallback when WebGL is unavailable. The route is an artistic interpretation, not an exact survey of the neighborhood.
+
+The walk begins in dim blue dawn. After roughly 38% of the route, the furthest reached position gradually brings in morning: the sky and fog brighten, sunlight rises above rooftops, architectural lighting warms, and shop/lamplight emissive intensity fades. Backtracking does not reverse the sunrise. A subtle grain/vignette layer and weathered masonry/storefront details reference the supplied video stills.
