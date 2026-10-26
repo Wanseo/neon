@@ -76,7 +76,8 @@ function paint(walking = false) {
   const py = started ? mix(scene.start[1], scene.end[1], t) : .88
   const side = initialFacing !== 0 || (started && scene.view === 'side')
   character.dataset.view = side ? 'side' : started ? 'back' : 'front'
-  character.style.left = `${clamp(px + lateral * .07, .08, .92) * 100}%`
+  const edge = character.offsetWidth * scale / innerWidth / 2 + .02
+  character.style.left = `${clamp(px + lateral * .07, edge, 1 - edge) * 100}%`
   character.style.top = `${py * 100}%`
   const sway = walking && !reducedMotion.matches ? Math.sin(stepTime * 8) * .7 : 0
   character.style.transform = `translate(-50%, -100%) scale(${scale}) translateY(${bounce}px) rotate(${sway}deg)`
@@ -119,7 +120,11 @@ function update(time: number) {
   if (forward) { started = true; initialFacing = 0 }
   const speed = forward && sideways ? Math.SQRT1_2 : 1
   position = clamp(position + (automatic ? .105 : forward * .13 * speed) * dt, 0, walkRoute.length)
-  lateral = clamp(lateral + sideways * dt * 2.8 * speed, (.08 - pxForMovement()) / .07, (.92 - pxForMovement()) / .07)
+  const sceneIndex = Math.min(walkRoute.length - 1, Math.floor(position))
+  const scene = walkRoute[sceneIndex]!
+  const size = started ? mix(scene.scale[0], scene.scale[1], clamp(position - sceneIndex)) : 1
+  const edge = character.offsetWidth * size / innerWidth / 2 + .02
+  lateral = clamp(lateral + sideways * dt * 2.8 * speed, (edge - pxForMovement()) / .07, (1 - edge - pxForMovement()) / .07)
   if (sideways) initialFacing = sideways
   if (position >= walkRoute.length) automatic = false
   const walking = position !== previous || lateral !== previousLateral
