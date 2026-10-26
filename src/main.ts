@@ -7,7 +7,7 @@ import { createMusicPlayer } from './music'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 app.className = 'reference-walk'
-const music = createMusicPlayer(app)
+createMusicPlayer(app)
 const photos = walkRoute.map(place => {
   const frame = document.createElement('div')
   frame.className = 'route-photo'
@@ -125,7 +125,6 @@ function toggleWalk() {
   if (position >= walkRoute.length) { position = 0; lateral = 0 }
   started = true; automatic = !automatic
   if (automatic) initialFacing = 0
-  if (automatic) music.start()
   paint(); if (automatic) ensureFrame()
 }
 function stopInput() {

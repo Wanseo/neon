@@ -27,14 +27,18 @@ button:focus-visible, .route-character:focus-visible { outline: 2px solid #eee6d
 .route-photo { overflow: hidden; }
 .route-photo img { position: absolute; max-width: none; user-select: none; }
 .music-panel { position: absolute; z-index: 5; right: 24px; bottom: 82px; width: 320px; color: #f5f0e7; }
-.music-video { width: 100%; height: 200px; background: #141722; }
-.music-video iframe { display: block; width: 100%; height: 200px; border: 0; }
+.music-preview { width: 100%; height: 175px; background: #141722; }
+.music-preview iframe { display: block; width: 100%; height: 175px; border: 0; color-scheme: dark; }
 .music-caption { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 11px; background: #192036dd; border: 1px solid #eee6d644; }
 .music-caption a { color: inherit; font-size: 11px; text-decoration: none; }
 .music-caption button { border: 0; border-radius: 12px; padding: 6px 9px; color: inherit; background: #ffffff16; font: inherit; font-size: 11px; cursor: pointer; }
 .music-status { margin: 0; padding: 5px 10px; background: #192036dd; font-size: 10px; }
 .music-status:empty { display: none; }
-@media (max-width: 650px) { .music-panel { right: 16px; bottom: 100px; width: 240px; } }
+@media (max-width: 650px) { .music-panel { right: 16px; bottom: 100px; width: min(320px, calc(100vw - 32px)); } }
 /* Preserve the deliberately drawn pixel edges at every viewport size. */
 .route-photo img { image-rendering: pixelated; }
 .music-caption, .walk-actions button { backdrop-filter: none; }
+.preview-controls { padding: 8px 10px; background: #192036ee; }
+.preview-controls audio { display: block; width: 100%; height: 32px; }
+.music-credit { margin: 0; padding: 6px 10px; background: #192036ee; color: #ddd9d2; font-size: 9px; line-height: 1.6; }
+.music-credit a { color: inherit; }
