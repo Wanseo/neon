@@ -7,12 +7,13 @@ import { walkRoute } from './walk-route'
 const app = document.querySelector<HTMLDivElement>('#app')!
 app.className = 'reference-walk'
 const photos = walkRoute.map(place => {
+  const frame = document.createElement('div')
+  frame.className = 'route-photo'
   const image = new Image()
-  image.className = 'route-photo'
   image.src = place.image; image.alt = ''; image.draggable = false
-  image.style.objectPosition = `${place.focus * 100}% center`
-  app.append(image)
-  return image
+  image.addEventListener('load', () => paint())
+  frame.append(image); app.append(frame)
+  return frame
 })
 const character = document.createElement('div')
 character.className = 'route-character'
@@ -52,6 +53,15 @@ function paint(walking = false) {
   const scene = walkRoute[index]!
   const fade = reducedMotion.matches ? 0 : clamp((t - .82) / .18)
   photos.forEach((photo, i) => {
+    const plate = walkRoute[i]!
+    const image = photo.querySelector('img')!
+    const imageWidth = image.naturalWidth || 1200
+    const panelHeight = (image.naturalHeight || 900 * plate.rows) / plate.rows
+    const fit = Math.max(innerWidth / imageWidth, innerHeight / panelHeight)
+    image.style.width = `${imageWidth * fit}px`
+    image.style.height = `${panelHeight * plate.rows * fit}px`
+    image.style.left = `${(innerWidth - imageWidth * fit) * plate.focus}px`
+    image.style.top = `${(innerHeight - panelHeight * fit) / 2 - plate.row * panelHeight * fit}px`
     photo.style.zIndex = String(i === index + 1 ? 1 : 0)
     photo.style.opacity = String(i === index ? 1 : i === index + 1 ? fade : 0)
     const local = i === index ? t : 0
@@ -62,7 +72,7 @@ function paint(walking = false) {
   const scale = started ? mix(scene.scale[0], scene.scale[1], t) : 1
   // Keep the actor on the visible pavement even when the photo is cropped on mobile.
   let px = started ? mix(scene.start[0], scene.end[0], t) : .5
-  if (innerWidth / innerHeight < 1 && index === 3) px = mix(.53, .43, t)
+  if (innerWidth / innerHeight < 1 && scene.name === '연희로27다길') px = mix(.53, .43, t)
   const py = started ? mix(scene.start[1], scene.end[1], t) : .88
   const side = started ? scene.view === 'side' : initialFacing !== 0
   character.dataset.view = side ? 'side' : started ? 'back' : 'front'

@@ -24,3 +24,5 @@ button:focus-visible, .route-character:focus-visible { outline: 2px solid #eee6d
 @media (max-width: 650px) { .walk-actions { top: 135px; left: 22px; right: auto; } }
 @media (pointer: coarse) { .touch-controls { display: flex; } .route-progress { bottom: 76px; } .keyboard-hint { bottom: 82px; font-size: 10px; } }
 @media (prefers-reduced-motion: reduce) { .route-photo, .route-character { will-change: auto; } }
+.route-photo { overflow: hidden; }
+.route-photo img { position: absolute; max-width: none; user-select: none; }
