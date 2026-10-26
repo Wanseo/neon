@@ -1,19 +1,5 @@
 * { box-sizing: border-box; }
-html, body { margin: 0; width: 100%; height: 100%; }
-body { overflow: hidden; background: #f8f3f3; color: #5a4048; font-family: Arial, 'Apple SD Gothic Neo', sans-serif; }
-button { font: inherit; cursor: pointer; }
-[hidden] { display: none !important; }
-#app { width: 100%; height: 100dvh; }
-.camera-scene { position: fixed; inset: 0; display: block; width: 100%; height: 100%; }
-.welcome { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 28px; text-align: center; background: radial-gradient(ellipse at center, #fff9f8, #f0e0e4); }
-.eyebrow { font-size: 11px; letter-spacing: .4em; color: #a96c80; }
-h1 { margin: 16px 0 8px; font-size: clamp(24px, 4vw, 40px); font-weight: 500; letter-spacing: -.04em; }
-.welcome p:not(.eyebrow) { line-height: 1.7; font-size: 14px; }
-.camera-start { margin-top: 24px; padding: 14px 30px; border: 1px solid #b67a8d; border-radius: 30px; background: #b67a8d; color: white; }
-.camera-start:disabled { opacity: .6; cursor: wait; }
-.welcome .privacy { margin-top: 24px; max-width: 300px; font-size: 11px !important; opacity: .65; }
-.camera-controls { position: fixed; bottom: max(20px, env(safe-area-inset-bottom)); left: 20px; right: 20px; display: flex; align-items: center; justify-content: center; gap: 18px; }
-.status { color: white; font-size: 13px; text-shadow: 0 1px 5px #000; }
-.status:empty { display: none; }
-.camera-stop { flex: none; border: 1px solid #ffffff70; border-radius: 24px; padding: 11px 18px; background: #32232b80; color: white; backdrop-filter: blur(12px); }
-button:focus-visible { outline: 2px solid #865164; outline-offset: 4px; }
+html, body { margin: 0; width: 100%; min-height: 100%; background: #fff; }
+body { overflow: hidden; }
+#app { width: 100%; min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 24px; }
+.pixel-character { display: block; height: min(340px, 55dvh); max-width: calc(100vw - 48px); object-fit: contain; image-rendering: pixelated; user-select: none; }

@@ -1,13 +1,9 @@
-# Fairy Wings
+# Mint Hoodie
 
-Vite vanilla TypeScript camera experience. A pair of pink wings follows the shoulders and gently flaps behind the person. MediaPipe Pose Landmarker supplies shoulder landmarks and a person mask; frames are processed locally in the browser and are not uploaded or recorded.
+Vite vanilla TypeScript page with a white background and one centered pixel character wearing a blue hood, mint hair, glasses, and black trousers.
 
-- `npm install`
-- `npm run dev` starts local development when needed.
-- `npm run build` checks TypeScript and builds to `dist`.
+Run npm install to install dependencies, npm run dev for development when requested, and npm run build to check TypeScript and build to dist.
 
-GitHub Pages deploys automatically from `main` through `.github/workflows`. Vite base is `/neon/`. Camera access requires HTTPS or localhost and a user click on **카메라 켜기**. Allow the browser's camera permission and stand far enough back for both shoulders to appear. **카메라 끄기** stops all camera tracks. Audio is not requested.
+GitHub Pages deploys automatically from main. Vite base is /neon/.
 
-`src/assets/fairy-wing.png` is the transparent cutout prepared from the supplied wing reference. `public/models` contains the Google MediaPipe pose lite model; `public/vision` contains the matching WASM runtime from the installed `@mediapipe/tasks-vision` package. If upgrading that dependency, update the copied runtime files at the same time.
-
-Original assets and earlier modules remain in the repository but are not loaded by the camera screen.
+The current page loads only its stylesheet and character PNG. Earlier source modules and original reference assets are kept in the repository but are not used by this page.
