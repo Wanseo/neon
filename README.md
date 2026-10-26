@@ -1,9 +1,9 @@
-# Mint Hoodie
+# 연희동까지의 산책
 
-Vite vanilla TypeScript page with a white background and one centered pixel character wearing a blue hood, mint hair, glasses, and black trousers.
+Vite vanilla TypeScript side-scrolling pixel scene. Use Left/Right arrows or A/D to walk from Yanghwa Bridge north end through the Hapjeong/Mangwon area and Yeonhui-ro to Yeonhui-dong. Touch arrows are available on touch devices.
 
-Run npm install to install dependencies, npm run dev for development when requested, and npm run build to check TypeScript and build to dist.
+The four original backgrounds reinterpret the reference video's blue-hour mood. Distances and buildings are stylized and compressed; this is not a navigation map or an exact reconstruction of the video.
 
-GitHub Pages deploys automatically from main. Vite base is /neon/.
+Run npm install, then npm run build for TypeScript checking and the production build. npm run dev is available when requested. GitHub Pages deploys main automatically; Vite base is /neon/.
 
-The current page loads only its stylesheet and character PNG. Earlier source modules and original reference assets are kept in the repository but are not used by this page.
+Original reference: https://www.youtube.com/watch?v=0VsAzkowpfw
