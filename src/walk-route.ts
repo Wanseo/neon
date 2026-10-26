@@ -4,6 +4,7 @@ import shop from './assets/yeonhui-shopfront.png'
 import alley from './assets/yeonhui-alley-entrance.png'
 import continuation from './assets/yeonhui-route-continuation.png'
 import storefronts from './assets/yeonhui-storefronts.png'
+import pixelAtlas from './assets/yeonhui-pixel-atlas.png'
 
 // Reference order supplied by the user. Append the next photographed stretch here.
 // Coordinates are normalized to each plate; they describe staging, not map surveying.
@@ -15,7 +16,7 @@ const originalRoute = [
 ] as const
 
 const side = { view: 'side', focus: .5, start: [.58, .9], end: [.45, .9], scale: [.96, .96], pan: .055 } as const
-export const walkRoute = [
+const referenceRoute = [
   { ...originalRoute[0], rows: 1, row: 0 },
   { ...originalRoute[1], rows: 1, row: 0 },
   { ...side, image: storefronts, rows: 2, row: 0, name: '부동산 앞', description: '노란 유리문을 따라 계속' },
@@ -26,3 +27,12 @@ export const walkRoute = [
   { image: continuation, rows: 3, row: 1, name: 'GS25 앞 교차로', description: '편의점 불빛과 전선 너머의 골목', view: 'back', focus: .5, start: [.5, .88], end: [.51, .66], scale: [.9, .58], pan: 0 },
   { image: continuation, rows: 3, row: 2, name: '골목 안쪽', description: '주차된 차와 흰 건물 사이로 계속', view: 'back', focus: .5, start: [.53, .88], end: [.55, .64], scale: [.92, .45], pan: 0 },
 ] as const
+
+export const walkRoute = referenceRoute.map((scene, index) => ({
+  ...scene,
+  image: pixelAtlas,
+  rows: 3,
+  row: Math.floor(index / 3),
+  cols: 3,
+  col: index % 3,
+}))

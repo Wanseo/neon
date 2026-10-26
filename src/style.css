@@ -35,3 +35,6 @@ button:focus-visible, .route-character:focus-visible { outline: 2px solid #eee6d
 .music-status { margin: 0; padding: 5px 10px; background: #192036dd; font-size: 10px; }
 .music-status:empty { display: none; }
 @media (max-width: 650px) { .music-panel { right: 16px; bottom: 100px; width: 240px; } }
+/* Preserve the deliberately drawn pixel edges at every viewport size. */
+.route-photo img { image-rendering: pixelated; }
+.music-caption, .walk-actions button { backdrop-filter: none; }

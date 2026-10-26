@@ -56,12 +56,12 @@ function paint(walking = false) {
   photos.forEach((photo, i) => {
     const plate = walkRoute[i]!
     const image = photo.querySelector('img')!
-    const imageWidth = image.naturalWidth || 1200
+    const imageWidth = (image.naturalWidth || 1200 * plate.cols) / plate.cols
     const panelHeight = (image.naturalHeight || 900 * plate.rows) / plate.rows
     const fit = Math.max(innerWidth / imageWidth, innerHeight / panelHeight)
-    image.style.width = `${imageWidth * fit}px`
+    image.style.width = `${imageWidth * plate.cols * fit}px`
     image.style.height = `${panelHeight * plate.rows * fit}px`
-    image.style.left = `${(innerWidth - imageWidth * fit) * plate.focus}px`
+    image.style.left = `${(innerWidth - imageWidth * fit) * plate.focus - plate.col * imageWidth * fit}px`
     image.style.top = `${(innerHeight - panelHeight * fit) / 2 - plate.row * panelHeight * fit}px`
     photo.style.zIndex = String(i === index + 1 ? 1 : 0)
     photo.style.opacity = String(i === index ? 1 : i === index + 1 ? fade : 0)
