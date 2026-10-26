@@ -23,6 +23,3 @@ h1 { margin: 0; font-size: clamp(22px, 3vw, 34px); font-weight: 500; letter-spac
 .character-walk { display: none; width: 400%; max-width: none; height: 100%; image-rendering: pixelated; }
 .pixel-character.is-side .character-front { display: none; }
 .pixel-character.is-side .character-walk { display: block; }
-.pixel-character.is-3d { filter: none; overflow: visible; }
-.pixel-character.is-3d .character-front, .pixel-character.is-3d .character-walk { display: none; }
-.character-3d { display: block; width: 100%; height: 100%; }
