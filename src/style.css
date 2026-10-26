@@ -40,3 +40,7 @@ h1 { margin: 0; font-size: clamp(22px, 3vw, 34px); font-weight: 500; letter-spac
 .is-immersed .pixel-character { pointer-events: none; }
 .view-button:focus-visible { outline: 2px solid #eee6d6; outline-offset: 4px; }
 @media (pointer: coarse) { .view-button { bottom: 105px; } .is-immersed .view-button { top: 110px; bottom: auto; } }
+
+.photo-background { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; pointer-events: none; user-select: none; }
+.has-photo-background .street-world { visibility: hidden; }
+.has-photo-background::before, .has-photo-background::after { display: none; }

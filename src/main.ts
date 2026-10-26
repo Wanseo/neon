@@ -1,5 +1,6 @@
 import './style.css'
-import { createStreet3D } from './street-3d'
+import photoUrl from './assets/yeonhui-photo-background.png'
+import type { createStreet3D } from './street-3d'
 import characterUrl from './assets/mint-hoodie-front-slouched.png'
 import walkingUrl from './assets/mint-hoodie-walk-slouched.png'
 import bridgeUrl from './assets/route-bridge.jpg'
@@ -58,10 +59,14 @@ touch.className = 'touch-controls'
 touch.innerHTML = '<button type="button" data-key="ArrowLeft" aria-label="왼쪽으로 이동">←</button><button type="button" data-key="ArrowRight" aria-label="오른쪽으로 이동">→</button>'
 app.append(world, character, heading, progress, hint, touch)
 let street3D: ReturnType<typeof createStreet3D> | undefined
-try {
-  street3D = createStreet3D(app)
-  app.classList.add('has-3d-street')
-} catch { /* Keep the illustrated route available without WebGL. */ }
+const photo = document.createElement('img')
+photo.className = 'photo-background'
+photo.src = photoUrl
+photo.alt = ''
+photo.draggable = false
+app.prepend(photo)
+app.classList.add('has-photo-background')
+
 
 const held = new Set<string>()
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
@@ -71,7 +76,6 @@ let hasTurned = false, drawnSprite = -1
 let lateral = 0
 let immersed = false, immersion = 0, transitionFrame = 0, transitionStart = 0
 function switchView() {
-  if (!street3D) return
   immersed = !immersed
   release()
   app.classList.toggle('is-immersed', immersed)
@@ -101,6 +105,7 @@ function paint(walking = false) {
   const projected = street3D?.render(x, camera, sectionWidth, worldWidth, immersion, stepTime, lateral)
   const screenX = projected ? Math.max(characterWidth / 2 + 20, Math.min(innerWidth - characterWidth / 2 - 20, projected.x)) : x - camera
   if (projected) character.style.bottom = `${innerHeight - projected.y - 8}px`
+  photo.style.transform = `scale(${1 + immersion * .12}) translateX(${-lateral * immersion * 1.5}%)`
   closeHead.style.transform = `translateX(-50%) translateY(${bounce}px)`
   world.style.transform = `translate3d(${-camera}px, 0, 0)`
   character.style.transform = `translate3d(${screenX - characterWidth / 2}px, ${bounce}px, 0) scaleX(${facing})`
