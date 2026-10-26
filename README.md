@@ -7,3 +7,5 @@ The four original backgrounds reinterpret the reference video's blue-hour mood. 
 Run npm install, then npm run build for TypeScript checking and the production build. npm run dev is available when requested. GitHub Pages deploys main automatically; Vite base is /neon/.
 
 Original reference: https://www.youtube.com/watch?v=0VsAzkowpfw
+
+The character is a real Three.js voxel model with directional lighting, 3D facing rotation, and articulated arm/leg animation. A sprite fallback is used on browsers without WebGL support. The street backgrounds remain illustrated panoramas.

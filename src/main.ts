@@ -1,4 +1,5 @@
 import './style.css'
+import { createVoxelCharacter } from './voxel-character'
 import characterUrl from './assets/mint-hoodie-character.png'
 import walkingUrl from './assets/mint-hoodie-walk.png'
 import bridgeUrl from './assets/route-bridge.jpg'
@@ -48,6 +49,11 @@ const touch = document.createElement('div')
 touch.className = 'touch-controls'
 touch.innerHTML = '<button type="button" data-key="ArrowLeft" aria-label="왼쪽으로 이동">←</button><button type="button" data-key="ArrowRight" aria-label="오른쪽으로 이동">→</button>'
 app.append(world, character, heading, progress, hint, touch)
+let voxel: ReturnType<typeof createVoxelCharacter> | undefined
+try {
+  voxel = createVoxelCharacter(character)
+  character.classList.add('is-3d')
+} catch { /* The existing sprites remain available without WebGL. */ }
 
 const held = new Set<string>()
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
@@ -59,7 +65,8 @@ function paint(walking = false) {
   const camera = Math.max(0, Math.min(worldWidth - innerWidth, x - innerWidth * .45))
   const bounce = walking && !reducedMotion.matches ? -Math.abs(Math.sin(stepTime * 12)) * 2 : 0
   world.style.transform = `translate3d(${-camera}px, 0, 0)`
-  character.style.transform = `translate3d(${x - camera - characterWidth / 2}px, ${bounce}px, 0) scaleX(${facing})`
+  character.style.transform = `translate3d(${x - camera - characterWidth / 2}px, ${voxel ? 0 : bounce}px, 0) scaleX(${voxel ? 1 : facing})`
+  voxel?.render(walking && !reducedMotion.matches, facing, stepTime, hasTurned)
   character.classList.toggle('is-side', hasTurned && walkSheet.complete && walkSheet.naturalWidth > 0)
   const sprite = walking && !reducedMotion.matches ? [1, 2, 3, 2][Math.floor(stepTime * 8) % 4]! : 0
   if (sprite !== drawnSprite) {
