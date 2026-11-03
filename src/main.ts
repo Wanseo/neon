@@ -117,7 +117,7 @@ function setFlight(enabled:boolean){
 }
 function jump(){
  if(returning){toast('달 기지로 착륙하는 중이에요.');return}
- if(spacewalk){flightVelocity.y=Math.min(flightVelocity.y+12,28);return}
+ if(spacewalk){flightVelocity.y=Math.min(flightVelocity.y+24,72);return}
  jumpCount=elapsed-lastJump<1.8?jumpCount+1:1;lastJump=elapsed
  if(jumpCount>=3){jumping=false;verticalSpeed=0;flightVelocity.set(0,24,0);target.copy(player.g.position);setFlight(true);toast('달을 떠났어요! WASD로 유영 · SPACE 상승 · SHIFT 하강');return}
  jumping=true;verticalSpeed=jumpCount===2?7:4.5
@@ -199,11 +199,11 @@ if(!returning){if(keys.has('w')||keys.has('arrowup'))dz--;if(keys.has('s')||keys
 const input=new THREE.Vector3(dx,0,dz);if(input.lengthSq()>1)input.normalize();input.applyAxisAngle(new THREE.Vector3(0,1,0),yaw)
 let walking=false
 if(spacewalk){
- if(returning){const destination=new THREE.Vector3(12,height(12,-16),-16);flightVelocity.x=THREE.MathUtils.clamp((destination.x-player.g.position.x)*1.2,-14,14);flightVelocity.z=THREE.MathUtils.clamp((destination.z-player.g.position.z)*1.2,-14,14);flightVelocity.y=-Math.min(20,Math.max(1,(player.g.position.y-destination.y)*.7))}
+ if(returning){const destination=new THREE.Vector3(12,height(12,-16),-16);flightVelocity.x=THREE.MathUtils.clamp((destination.x-player.g.position.x)*1.8,-48,48);flightVelocity.z=THREE.MathUtils.clamp((destination.z-player.g.position.z)*1.8,-48,48);flightVelocity.y=-Math.min(48,Math.max(1,(player.g.position.y-destination.y)*.7))}
  else{
   const thrust=(keys.has(' ')?1:0)-(keys.has('shift')||descendHeld?1:0)
-  flightVelocity.x=THREE.MathUtils.damp(flightVelocity.x,input.x*12,2,dt);flightVelocity.z=THREE.MathUtils.damp(flightVelocity.z,input.z*12,2,dt)
-  flightVelocity.y=thrust?THREE.MathUtils.damp(flightVelocity.y,thrust*20,2,dt):flightVelocity.y*Math.exp(-.35*dt)
+  flightVelocity.x=THREE.MathUtils.damp(flightVelocity.x,input.x*48,6,dt);flightVelocity.z=THREE.MathUtils.damp(flightVelocity.z,input.z*48,6,dt)
+  flightVelocity.y=thrust?THREE.MathUtils.damp(flightVelocity.y,thrust*60,5,dt):flightVelocity.y*Math.exp(-.35*dt)
  }
  player.g.position.addScaledVector(flightVelocity,dt)
  player.g.position.x=THREE.MathUtils.clamp(player.g.position.x,-220,220);player.g.position.z=THREE.MathUtils.clamp(player.g.position.z,-220,220)
@@ -218,7 +218,7 @@ if(spacewalk){
  if(input.lengthSq()){target.copy(player.g.position).addScaledVector(input,1.5);lookingEarth=false}
  target.x=THREE.MathUtils.clamp(target.x,-220,220);target.z=THREE.MathUtils.clamp(target.z,-220,220)
  const delta=new THREE.Vector3(target.x-player.g.position.x,0,target.z-player.g.position.z);walking=delta.length()>.12
- if(walking){delta.normalize();player.g.position.addScaledVector(delta,Math.min(dt*3.4,Math.hypot(target.x-player.g.position.x,target.z-player.g.position.z)));const a=Math.atan2(delta.x,delta.z);player.g.rotation.y+=Math.atan2(Math.sin(a-player.g.rotation.y),Math.cos(a-player.g.rotation.y))*Math.min(dt*9,1)}
+ if(walking){delta.normalize();player.g.position.addScaledVector(delta,Math.min(dt*10.2,Math.hypot(target.x-player.g.position.x,target.z-player.g.position.z)));const a=Math.atan2(delta.x,delta.z);player.g.rotation.y+=Math.atan2(Math.sin(a-player.g.rotation.y),Math.cos(a-player.g.rotation.y))*Math.min(dt*9,1)}
  player.legs.forEach((leg,i)=>leg.rotation.x=walking?Math.sin(elapsed*7+i*Math.PI)*.45:0)
  const surface=height(player.g.position.x,player.g.position.z)
  if(jumping){verticalSpeed-=1.62*dt;player.g.position.y+=verticalSpeed*dt;if(player.g.position.y<=surface&&verticalSpeed<0){jumping=false;verticalSpeed=0;jumpCount=0;player.g.position.y=surface}}

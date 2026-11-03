@@ -89,7 +89,7 @@ export function createCompanions(scene: THREE.Scene, height: (x: number, z: numb
     for (const { object, x, z, hover } of desired) {
       const dx = x - object.position.x, dz = z - object.position.z, moving = Math.hypot(dx, dz) > .5
       if (moving) {
-        const speed = object === wall ? 2.9 : 3.6, step = Math.min(dt * speed, Math.hypot(dx, dz)), angle = Math.atan2(dx, dz)
+        const speed = object === wall ? 11 : 54, step = Math.min(dt * speed, Math.hypot(dx, dz)), angle = Math.atan2(dx, dz)
         object.position.x += Math.sin(angle) * step; object.position.z += Math.cos(angle) * step
         object.rotation.y += Math.atan2(Math.sin(angle - object.rotation.y), Math.cos(angle - object.rotation.y)) * Math.min(dt * 4, 1)
       } else {
