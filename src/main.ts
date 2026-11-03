@@ -1,5 +1,6 @@
 import './style.css'
 import * as THREE from 'three'
+import { createCompanions } from './companions'
 
 const icons = {
  sound: '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M16 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>',
@@ -12,7 +13,7 @@ const icons = {
 const icon = (name: keyof typeof icons) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${icons[name]}</svg>`
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 <canvas id="universe" aria-label="직접 탐험할 수 있는 3D 달 표면"></canvas>
-<header><div class="room glass"><span class="room-symbol">☾</span><span>고요의 바다 <small>01</small></span><span class="divider"></span><span class="live"><i></i> 나 홀로 탐사 중</span></div><div class="tools glass"><span class="orbit-symbol">✧</span><button id="sound" aria-label="우주 사운드 켜기">${icon('sound')}</button><button id="settings" aria-label="설정">${icon('settings')}</button></div></header>
+<header><div class="room glass"><span class="room-symbol">☾</span><span>고요의 바다 <small>01</small></span><span class="divider"></span><span class="live"><i></i> 로봇 친구들과 탐사 중</span></div><div class="tools glass"><span class="orbit-symbol">✧</span><button id="sound" aria-label="우주 사운드 켜기">${icon('sound')}</button><button id="settings" aria-label="설정">${icon('settings')}</button></div></header>
 <aside class="lunar-map" aria-label="달 표면 미니맵: 내 위치와 지나온 경로, 달 기지">
   <div class="map-title"><span>고요의 바다</span><small>LUNAR SURFACE</small></div>
   <div class="map-terrain"><canvas id="minimap" aria-label="실시간 탐사 위치 지도"></canvas><span class="map-north">N ↑</span></div>
@@ -61,6 +62,7 @@ function mesh(geo:THREE.BufferGeometry,mat:THREE.Material,parent:THREE.Object3D,
 function astronaut(x:number,z:number,scale=1){const g=new THREE.Group();g.position.set(x,height(x,z),z);g.scale.setScalar(scale);mesh(new THREE.CapsuleGeometry(.34,.48,6,12),white,g,0,1.05,0);mesh(new THREE.SphereGeometry(.43,24,20),white,g,0,1.8,0);const visor=mesh(new THREE.SphereGeometry(.345,24,16),glass,g,0,1.82,.19);visor.scale.set(1,.78,.7);mesh(new THREE.BoxGeometry(.52,.65,.28),white,g,0,1.1,-.36);const legs=[-.19,.19].map(x=>mesh(new THREE.CapsuleGeometry(.15,.39,4,8),white,g,x,.42,0));for(const x of [-.47,.47]){const arm=mesh(new THREE.CapsuleGeometry(.13,.43,4,8),white,g,x,1.12,0);arm.rotation.z=x>0?-.15:.15}mesh(new THREE.BoxGeometry(.24,.18,.06),gold,g,0,1.25,.34);scene.add(g);return {g,legs}}
 const player=astronaut(0,5);player.g.rotation.y=Math.PI
 astronaut(-12,-13,.85).g.rotation.y=1.2
+const companions=createCompanions(scene,height)
 // A compact lunar outpost with warm windows and solar arrays.
 const base=new THREE.Group();base.position.set(17,height(17,-23),-23);scene.add(base)
 const habitat=mesh(new THREE.CylinderGeometry(3.2,3.2,4,32),white,base,0,3.4,0);habitat.rotation.z=Math.PI/2
@@ -91,6 +93,7 @@ canvas.addEventListener('pointerup',e=>{
  if(touches.size){const point=[...touches.values()][0];downX=lastX=point.x;downY=lastY=point.y;moved=true;return}
  pinchDistance=0;if(moved||wasPinching)return
  pointer.set(e.clientX/innerWidth*2-1,-e.clientY/innerHeight*2+1);ray.setFromCamera(pointer,camera)
+ const friend=ray.intersectObjects(companions.objects,true)[0];if(friend){companions.greet(elapsed);toast('월-E와 이브가 반갑게 인사해요. 함께 달을 걸어볼까요?');return}
  const hit=ray.intersectObject(ground)[0];if(hit&&hit.point.distanceTo(player.g.position)<100){target.copy(hit.point);marker.position.copy(hit.point);marker.position.y+=.06;(marker.material as THREE.MeshBasicMaterial).opacity=.9;lookingEarth=false}
 })
 canvas.addEventListener('pointercancel',e=>{touches.delete(e.pointerId);dragging=false;moved=true;pinchDistance=0})
@@ -178,5 +181,5 @@ player.g.visible=immersion<.45;hands.visible=immersion>.85;hands.scale.setScalar
 hands.position.y=walking?Math.sin(elapsed*7)*.012:Math.sin(elapsed*1.5)*.004;hands.rotation.z=walking?Math.sin(elapsed*3.5)*.015:0
 if(firstPerson!==(immersion>.85)){firstPerson=immersion>.85;hint.innerHTML=firstPerson?eyeHint:orbitHint}
 earth.rotation.y+=dt*.008;(marker.material as THREE.MeshBasicMaterial).opacity*=.98
-const screen=player.g.position.clone().add(new THREE.Vector3(0,2.8,0)).project(camera);label.style.left=`${(screen.x*.5+.5)*innerWidth}px`;label.style.top=`${(-screen.y*.5+.5)*innerHeight}px`;label.style.opacity=screen.z<1&&!lookingEarth&&immersion<.2?'1':'0';updateMap(elapsed);renderer.render(scene,camera)}
+const screen=player.g.position.clone().add(new THREE.Vector3(0,2.8,0)).project(camera);label.style.left=`${(screen.x*.5+.5)*innerWidth}px`;label.style.top=`${(-screen.y*.5+.5)*innerHeight}px`;label.style.opacity=screen.z<1&&!lookingEarth&&immersion<.2?'1':'0';companions.update(elapsed,dt,player.g.position);updateMap(elapsed);renderer.render(scene,camera)}
 focus.copy(player.g.position);animate();window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)})
