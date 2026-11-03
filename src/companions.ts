@@ -96,7 +96,9 @@ export function createCompanions(scene: THREE.Scene, height: (x: number, z: numb
         const angle = Math.atan2(player.x - object.position.x, player.z - object.position.z)
         object.rotation.y += Math.atan2(Math.sin(angle - object.rotation.y), Math.cos(angle - object.rotation.y)) * Math.min(dt * 2, 1)
       }
-      object.position.y = height(object.position.x, object.position.z) + hover + (object === eve ? Math.sin(time * 1.8) * .14 : moving ? Math.sin(time * 16) * .018 : 0)
+      const surface = height(object.position.x, object.position.z)
+      const floatingHeight = object === eve ? Math.max(surface + hover, player.y + hover) : surface
+      object.position.y = THREE.MathUtils.damp(object.position.y, floatingHeight + (object === eve ? Math.sin(time * 1.8) * .14 : moving ? Math.sin(time * 16) * .018 : 0), 4, dt)
       if (object === wall) treads.forEach((tread, i) => tread.rotation.x = moving ? Math.sin(time * 12 + i) * .015 : 0)
     }
     const waving = time < waveUntil

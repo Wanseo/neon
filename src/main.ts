@@ -26,6 +26,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 <div class="hint">바닥을 클릭해 이동 <em>·</em> 드래그로 둘러보기 <em>·</em> 휠로 확대 / 축소</div>
 <nav class="actions glass" aria-label="달 탐험 행동"><button id="jump">${icon('jump')}<span>달뜀하기</span></button><button id="flag">${icon('flag')}<span>깃발 꽂기</span></button><button id="earth">${icon('view')}<span>지구 바라보기</span></button><span class="action-divider"></span><button id="home">${icon('home')}<span>기지로</span></button></nav>
 <footer><span><i></i> ALL IS QUIET UP HERE</span><span>지구로부터 <b>384,400</b> km</span></footer>
+<section class="flight-hud glass" hidden aria-label="우주 유영 상태"><span class="flight-mode">✧ 우주 유영</span><strong><span id="altitude">0</span><small>m · 달 표면 위</small></strong><p>WASD / 방향키 · 이동<br>SPACE · 상승 &nbsp; SHIFT · 하강</p><button id="descend">↓ 하강</button><span class="flight-return">기지로 버튼을 누르면 자동 착륙</span></section>
 <div id="toast" role="status"></div>
 <dialog id="settings-panel"><form method="dialog"><button class="close" aria-label="닫기">×</button><span class="eyebrow">YOUR LITTLE UNIVERSE</span><h2>나만의 달</h2><label>별의 밝기 <input id="stars" type="range" min="0.2" max="1" step="0.1" value="0.7"></label><p>이곳은 혼자 쉬어가는 작은 우주예요.<br>방향키 또는 WASD로도 걸을 수 있어요.</p><button class="done">탐사 계속하기 ↗</button></form></dialog>`
 
@@ -35,7 +36,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(innerWidt
 renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap
 renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.15
 const scene=new THREE.Scene(); scene.background=new THREE.Color('#03060b'); scene.fog=new THREE.FogExp2('#080b12',0.003)
-const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,0.1,1500)
+const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,0.1,5000)
 scene.add(new THREE.HemisphereLight(0xc9ddff,0x24242e,1.3))
 const sun=new THREE.DirectionalLight(0xfff1da,3.2);sun.position.set(-30,35,-20);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-45,right:45,top:45,bottom:-45});sun.shadow.bias=-0.0004;scene.add(sun)
 let seed=42;function random(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
@@ -48,15 +49,16 @@ groundGeo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));groun
 const noiseCanvas=document.createElement('canvas');noiseCanvas.width=noiseCanvas.height=512;const ctx=noiseCanvas.getContext('2d')!;const pixels=ctx.createImageData(512,512);for(let i=0;i<pixels.data.length;i+=4){const v=130+random()*110;pixels.data[i]=v;pixels.data[i+1]=v;pixels.data[i+2]=v;pixels.data[i+3]=255}ctx.putImageData(pixels,0,0)
 const noise=new THREE.CanvasTexture(noiseCanvas);noise.wrapS=noise.wrapT=THREE.RepeatWrapping;noise.repeat.set(75,75)
 const ground=new THREE.Mesh(groundGeo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,map:noise,bumpMap:noise,bumpScale:.16}));ground.receiveShadow=true;scene.add(ground)
+const lunarGlobe=new THREE.Mesh(new THREE.SphereGeometry(650,96,64),new THREE.MeshStandardMaterial({color:0x777a80,roughness:1,map:noise,bumpMap:noise,bumpScale:1.3}));lunarGlobe.position.y=-652;scene.add(lunarGlobe)
 const rockGeo=new THREE.IcosahedronGeometry(1,0);const rockMat=new THREE.MeshStandardMaterial({color:0x747780,roughness:1,flatShading:true})
 for(let i=0;i<420;i++){const x=(random()-.5)*220,z=(random()-.5)*220;if(Math.hypot(x,z)<3)continue;const rock=new THREE.Mesh(rockGeo,rockMat);const s=.08+random()**3*1.8;rock.position.set(x,height(x,z)+s*.25,z);rock.scale.set(s,s*(.4+random()*.5),s);rock.rotation.set(random()*2,random()*6,random());rock.castShadow=true;rock.receiveShadow=true;scene.add(rock)}
-const starGeo=new THREE.BufferGeometry();const starPositions=[];for(let i=0;i<3600;i++){const v=new THREE.Vector3((random()-.5)*2,random()*.95+.03,(random()-.5)*2).normalize().multiplyScalar(450);starPositions.push(v.x,v.y,v.z)}starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPositions,3));const starMat=new THREE.PointsMaterial({color:0xdce9ff,size:.65,transparent:true,opacity:.7,sizeAttenuation:true});scene.add(new THREE.Points(starGeo,starMat))
+const starGeo=new THREE.BufferGeometry();const starPositions=[];for(let i=0;i<3600;i++){const v=new THREE.Vector3((random()-.5)*2,random()*.95+.03,(random()-.5)*2).normalize().multiplyScalar(450);starPositions.push(v.x,v.y,v.z)}starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPositions,3));const starMat=new THREE.PointsMaterial({color:0xdce9ff,size:.65,transparent:true,opacity:.7,sizeAttenuation:true});const starfield=new THREE.Points(starGeo,starMat);scene.add(starfield)
 // A painted globe with clouds, land masses, and an atmospheric rim.
 const earthCanvas=document.createElement('canvas');earthCanvas.width=1024;earthCanvas.height=512;const ec=earthCanvas.getContext('2d')!;ec.fillStyle='#15578e';ec.fillRect(0,0,1024,512)
 for(let i=0;i<90;i++){const x=random()*1024,y=random()*512;ec.fillStyle=['#688c85','#8f9e87','#466e77'][i%3];ec.beginPath();for(let j=0;j<16;j++){const a=j/16*Math.PI*2,r=10+random()*50;const px=x+Math.cos(a)*r*1.6,py=y+Math.sin(a)*r;j?ec.lineTo(px,py):ec.moveTo(px,py)}ec.fill()}
 for(let i=0;i<270;i++){ec.fillStyle=`rgba(240,249,255,${.07+random()*.35})`;ec.beginPath();ec.ellipse(random()*1024,random()*512,15+random()*90,2+random()*9,-.25,0,Math.PI*2);ec.fill()}
-const earth=new THREE.Mesh(new THREE.SphereGeometry(12,64,48),new THREE.MeshStandardMaterial({map:new THREE.CanvasTexture(earthCanvas),roughness:1,emissive:0x15394c,emissiveIntensity:.35}));earth.position.set(-38,20,-145);earth.rotation.z=.22;scene.add(earth)
-const atmosphere=new THREE.Mesh(new THREE.SphereGeometry(12.35,64,48),new THREE.ShaderMaterial({transparent:true,side:THREE.BackSide,uniforms:{},vertexShader:'varying vec3 n; varying vec3 v; void main(){vec4 p=modelViewMatrix*vec4(position,1.); n=normalize(normalMatrix*normal);v=normalize(-p.xyz);gl_Position=projectionMatrix*p;}',fragmentShader:'varying vec3 n; varying vec3 v; void main(){float a=pow(1.-abs(dot(n,v)),3.);gl_FragColor=vec4(.24,.58,1.,a*.65);}'}));atmosphere.position.copy(earth.position);scene.add(atmosphere)
+const earth=new THREE.Mesh(new THREE.SphereGeometry(120,64,48),new THREE.MeshStandardMaterial({map:new THREE.CanvasTexture(earthCanvas),roughness:1,emissive:0x15394c,emissiveIntensity:.35,fog:false}));earth.position.set(-380,200,-1450);earth.rotation.z=.22;scene.add(earth)
+const atmosphere=new THREE.Mesh(new THREE.SphereGeometry(123.5,64,48),new THREE.ShaderMaterial({transparent:true,side:THREE.BackSide,uniforms:{},vertexShader:'varying vec3 n; varying vec3 v; void main(){vec4 p=modelViewMatrix*vec4(position,1.); n=normalize(normalMatrix*normal);v=normalize(-p.xyz);gl_Position=projectionMatrix*p;}',fragmentShader:'varying vec3 n; varying vec3 v; void main(){float a=pow(1.-abs(dot(n,v)),3.);gl_FragColor=vec4(.24,.58,1.,a*.65);}'}));atmosphere.position.copy(earth.position);scene.add(atmosphere)
 const white=new THREE.MeshStandardMaterial({color:0xe9e9e3,roughness:.7});const dark=new THREE.MeshStandardMaterial({color:0x283440,roughness:.7});const gold=new THREE.MeshStandardMaterial({color:0xd8a963,metalness:.8,roughness:.25});const glass=new THREE.MeshStandardMaterial({color:0x172a37,metalness:.85,roughness:.13})
 function mesh(geo:THREE.BufferGeometry,mat:THREE.Material,parent:THREE.Object3D,x:number,y:number,z:number){const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m}
 function astronaut(x:number,z:number,scale=1){const g=new THREE.Group();g.position.set(x,height(x,z),z);g.scale.setScalar(scale);mesh(new THREE.CapsuleGeometry(.34,.48,6,12),white,g,0,1.05,0);mesh(new THREE.SphereGeometry(.43,24,20),white,g,0,1.8,0);const visor=mesh(new THREE.SphereGeometry(.345,24,16),glass,g,0,1.82,.19);visor.scale.set(1,.78,.7);mesh(new THREE.BoxGeometry(.52,.65,.28),white,g,0,1.1,-.36);const legs=[-.19,.19].map(x=>mesh(new THREE.CapsuleGeometry(.15,.39,4,8),white,g,x,.42,0));for(const x of [-.47,.47]){const arm=mesh(new THREE.CapsuleGeometry(.13,.43,4,8),white,g,x,1.12,0);arm.rotation.z=x>0?-.15:.15}mesh(new THREE.BoxGeometry(.24,.18,.06),gold,g,0,1.25,.34);scene.add(g);return {g,legs}}
@@ -72,7 +74,7 @@ for(const x of [-7,7]){mesh(new THREE.CylinderGeometry(.08,.08,2,8),white,base,x
 const dish=mesh(new THREE.SphereGeometry(1.2,20,12,0,Math.PI*2,0,Math.PI/2),white,base,0,7,0);dish.rotation.x=.6;mesh(new THREE.CylinderGeometry(.08,.08,2,8),dark,base,0,5.8,0)
 function plantFlag(x:number,z:number){const flag=new THREE.Group();flag.position.set(x,height(x,z),z);mesh(new THREE.CylinderGeometry(.035,.035,3.3,8),white,flag,0,1.65,0);mesh(new THREE.BoxGeometry(1.15,.72,.025),new THREE.MeshStandardMaterial({color:0xd7aa64,roughness:.9}),flag,.58,2.85,0);mesh(new THREE.TorusGeometry(.18,.025,8,24),white,flag,.58,2.85,.025);scene.add(flag)}plantFlag(-5,-5)
 const marker=new THREE.Mesh(new THREE.RingGeometry(.35,.43,40),new THREE.MeshBasicMaterial({color:0xe9c790,transparent:true,opacity:0}));marker.rotation.x=-Math.PI/2;scene.add(marker)
-let yaw=0,pitch=.18,distance=15;const focus=new THREE.Vector3();const target=player.g.position.clone();let jumping=false,jumpTime=0;let lookingEarth=false
+let yaw=0,pitch=.18,distance=15;const focus=new THREE.Vector3();const target=player.g.position.clone();let jumping=false;let verticalSpeed=0,jumpCount=0,lastJump=-10,spacewalk=false,returning=false,descendHeld=false;const flightVelocity=new THREE.Vector3();let lookingEarth=false
 const ray=new THREE.Raycaster();const pointer=new THREE.Vector2();let downX=0,downY=0,lastX=0,lastY=0,dragging=false,moved=false
 const touches=new Map<number,THREE.Vector2>();let pinchDistance=0
 function changeZoom(amount:number){distance=THREE.MathUtils.clamp(distance+amount,.65,38);lookingEarth=false}
@@ -85,7 +87,7 @@ canvas.addEventListener('pointermove',e=>{
  if(!touches.has(e.pointerId))return;touches.set(e.pointerId,new THREE.Vector2(e.clientX,e.clientY))
  if(touches.size>1){const points=[...touches.values()],next=points[0].distanceTo(points[1]);if(pinchDistance>0)changeZoom((pinchDistance-next)*.04);pinchDistance=next;moved=true;return}
  if(!dragging)return;if(Math.hypot(e.clientX-downX,e.clientY-downY)>5)moved=true
- if(moved){yaw-=(e.clientX-lastX)*.005;pitch=THREE.MathUtils.clamp(pitch+(e.clientY-lastY)*.003,distance<3?-.95:.03,1.1);lookingEarth=false}
+ if(moved){yaw-=(e.clientX-lastX)*.005;pitch=THREE.MathUtils.clamp(pitch+(e.clientY-lastY)*.003,spacewalk||distance<3?-.95:.03,1.1);lookingEarth=false}
  lastX=e.clientX;lastY=e.clientY
 })
 canvas.addEventListener('pointerup',e=>{
@@ -94,16 +96,36 @@ canvas.addEventListener('pointerup',e=>{
  pinchDistance=0;if(moved||wasPinching)return
  pointer.set(e.clientX/innerWidth*2-1,-e.clientY/innerHeight*2+1);ray.setFromCamera(pointer,camera)
  const friend=ray.intersectObjects(companions.objects,true)[0];if(friend){companions.greet(elapsed);toast('월-E와 이브가 반갑게 인사해요. 함께 달을 걸어볼까요?');return}
+ if(spacewalk)return
  const hit=ray.intersectObject(ground)[0];if(hit&&hit.point.distanceTo(player.g.position)<100){target.copy(hit.point);marker.position.copy(hit.point);marker.position.y+=.06;(marker.material as THREE.MeshBasicMaterial).opacity=.9;lookingEarth=false}
 })
 canvas.addEventListener('pointercancel',e=>{touches.delete(e.pointerId);dragging=false;moved=true;pinchDistance=0})
 canvas.addEventListener('wheel',e=>{e.preventDefault();changeZoom(e.deltaY*.015)},{passive:false})
-const keys=new Set<string>();window.addEventListener('keydown',e=>{if(e.target instanceof HTMLInputElement)return;if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();keys.add(e.key.toLowerCase());if(e.code==='Space')jump()});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>keys.clear())
+const keys=new Set<string>();window.addEventListener('keydown',e=>{if(e.target instanceof HTMLInputElement)return;if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();keys.add(e.key.toLowerCase());if(e.code==='Space'&&!e.repeat)jump()});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>keys.clear())
 let toastTimer:ReturnType<typeof setTimeout>;function toast(message:string){const t=document.querySelector('#toast')!;t.textContent=message;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3000)}
-function jump(){if(!jumping){jumping=true;jumpTime=0;toast('여기서는 조금 더 가볍게. 달의 중력은 지구의 1/6이에요.')}}
+const flightHud=document.querySelector<HTMLElement>('.flight-hud')!
+const altitudeLabel=document.querySelector('#altitude')!
+const jumpLabel=document.querySelector('#jump span')!
+function setFlight(enabled:boolean){
+ spacewalk=enabled;flightHud.hidden=!enabled;document.querySelector('.live')!.innerHTML=enabled?'<i></i> 자유 유영 중':'<i></i> 로봇 친구들과 탐사 중'
+ jumpLabel.textContent=enabled?'상승 부스트':'달뜀하기';document.querySelector('#flag')!.toggleAttribute('disabled',enabled)
+ hint.innerHTML=enabled?flightHint:firstPerson?eyeHint:orbitHint
+}
+function jump(){
+ if(returning){toast('달 기지로 착륙하는 중이에요.');return}
+ if(spacewalk){flightVelocity.y=Math.min(flightVelocity.y+12,28);return}
+ jumpCount=elapsed-lastJump<1.8?jumpCount+1:1;lastJump=elapsed
+ if(jumpCount>=3){jumping=false;verticalSpeed=0;flightVelocity.set(0,24,0);target.copy(player.g.position);setFlight(true);toast('달을 떠났어요! WASD로 유영 · SPACE 상승 · SHIFT 하강');return}
+ jumping=true;verticalSpeed=jumpCount===2?7:4.5
+ toast(jumpCount===2?'한 번 더 점프하면 우주 유영을 시작해요!':'점프를 연속 3번 누르면 우주로 떠올라요.')
+}
+const descendButton=document.querySelector<HTMLButtonElement>('#descend')!
+descendButton.addEventListener('pointerdown',e=>{descendHeld=true;descendButton.setPointerCapture(e.pointerId)})
+for(const event of ['pointerup','pointercancel','lostpointercapture'])descendButton.addEventListener(event,()=>descendHeld=false)
+window.addEventListener('blur',()=>descendHeld=false)
 document.querySelector('#jump')!.addEventListener('click',jump)
 let flags=0;document.querySelector('#flag')!.addEventListener('click',()=>{if(flags>=12){toast('오늘의 탐사 흔적을 충분히 남겼어요.');return}plantFlag(player.g.position.x+1.3,player.g.position.z);flags++;toast('작은 지구인이 다녀간 자리 ✧')})
-document.querySelector('#home')!.addEventListener('click',()=>{target.set(12,0,-16);lookingEarth=false;toast('고요의 기지로 돌아가는 중')})
+document.querySelector('#home')!.addEventListener('click',()=>{target.set(12,0,-16);lookingEarth=false;if(spacewalk){returning=true;toast('달 기지로 자동 귀환해요. 천천히 착륙합니다.')}else toast('고요의 기지로 돌아가는 중')})
 document.querySelector('#earth')!.addEventListener('click',()=>{lookingEarth=!lookingEarth;distance=Math.max(distance,8);yaw=.34;pitch=.12;toast(lookingEarth?'저 푸른 점에 우리의 모든 일상이 있어요.':'다시, 나의 작은 탐사')})
 document.querySelector('#settings')!.addEventListener('click',()=>document.querySelector<HTMLDialogElement>('#settings-panel')!.showModal())
 document.querySelector('#stars')!.addEventListener('input',e=>starMat.opacity=Number((e.target as HTMLInputElement).value))
@@ -160,13 +182,42 @@ for(const side of [-1,1]){
 }
 let zoomDistance=distance,firstPerson=false
 const hint=document.querySelector<HTMLElement>('.hint')!
+const flightHint='우주 유영 <em>·</em> WASD 이동 <em>·</em> SPACE 상승 <em>·</em> SHIFT 하강 <em>·</em> 기지로 자동 착륙'
 const orbitHint='바닥을 클릭해 이동 <em>·</em> 드래그로 둘러보기 <em>·</em> 휠 / 두 손가락으로 확대'
 const eyeHint='1인칭 탐사 <em>·</em> WASD / 방향키로 이동 <em>·</em> 드래그로 둘러보기 <em>·</em> 축소하면 3인칭'
 hint.innerHTML=orbitHint
 const clock=new THREE.Clock();let elapsed=0;const label=document.querySelector<HTMLElement>('.name-tag')!
-function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.05);elapsed+=dt;let dx=0,dz=0;if(keys.has('w')||keys.has('arrowup'))dz--;if(keys.has('s')||keys.has('arrowdown'))dz++;if(keys.has('a')||keys.has('arrowleft'))dx--;if(keys.has('d')||keys.has('arrowright'))dx++;if(dx||dz){target.copy(player.g.position);target.x+=(dx*Math.cos(yaw)+dz*Math.sin(yaw))*1.5;target.z+=(-dx*Math.sin(yaw)+dz*Math.cos(yaw))*1.5;lookingEarth=false}
-const delta=new THREE.Vector3(target.x-player.g.position.x,0,target.z-player.g.position.z);const walking=delta.length()>.12;if(walking){delta.normalize();player.g.position.addScaledVector(delta,Math.min(dt*3.4,Math.hypot(target.x-player.g.position.x,target.z-player.g.position.z)));const a=Math.atan2(delta.x,delta.z);player.g.rotation.y+=Math.atan2(Math.sin(a-player.g.rotation.y),Math.cos(a-player.g.rotation.y))*Math.min(dt*9,1)}player.legs.forEach((leg,i)=>leg.rotation.x=walking?Math.sin(elapsed*7+i*Math.PI)*.45:0)
-let lift=0;if(jumping){jumpTime+=dt;lift=Math.sin(Math.min(jumpTime/2.4,1)*Math.PI)*3.2;if(jumpTime>=2.4)jumping=false}player.g.position.y=height(player.g.position.x,player.g.position.z)+lift+(walking?Math.abs(Math.sin(elapsed*7))*.09:0)
+function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.05);elapsed+=dt
+let dx=0,dz=0
+if(!returning){if(keys.has('w')||keys.has('arrowup'))dz--;if(keys.has('s')||keys.has('arrowdown'))dz++;if(keys.has('a')||keys.has('arrowleft'))dx--;if(keys.has('d')||keys.has('arrowright'))dx++}
+const input=new THREE.Vector3(dx,0,dz);if(input.lengthSq()>1)input.normalize();input.applyAxisAngle(new THREE.Vector3(0,1,0),yaw)
+let walking=false
+if(spacewalk){
+ if(returning){const destination=new THREE.Vector3(12,height(12,-16),-16);flightVelocity.x=THREE.MathUtils.clamp((destination.x-player.g.position.x)*1.2,-14,14);flightVelocity.z=THREE.MathUtils.clamp((destination.z-player.g.position.z)*1.2,-14,14);flightVelocity.y=-Math.min(20,Math.max(1,(player.g.position.y-destination.y)*.7))}
+ else{
+  const thrust=(keys.has(' ')?1:0)-(keys.has('shift')||descendHeld?1:0)
+  flightVelocity.x=THREE.MathUtils.damp(flightVelocity.x,input.x*12,2,dt);flightVelocity.z=THREE.MathUtils.damp(flightVelocity.z,input.z*12,2,dt)
+  flightVelocity.y=thrust?THREE.MathUtils.damp(flightVelocity.y,thrust*20,2,dt):flightVelocity.y*Math.exp(-.35*dt)
+ }
+ player.g.position.addScaledVector(flightVelocity,dt)
+ player.g.position.x=THREE.MathUtils.clamp(player.g.position.x,-220,220);player.g.position.z=THREE.MathUtils.clamp(player.g.position.z,-220,220)
+ player.g.position.y=Math.min(player.g.position.y,800)
+ const surface=height(player.g.position.x,player.g.position.z),altitude=player.g.position.y-surface
+ if(altitude<=.1&&flightVelocity.y<0){player.g.position.y=surface;flightVelocity.set(0,0,0);returning=false;jumpCount=0;target.copy(player.g.position);setFlight(false);toast('다시 달에 도착했어요. 잘 다녀왔어요!')}
+ altitudeLabel.textContent=Math.max(0,Math.round(altitude)).toLocaleString();player.g.rotation.x=THREE.MathUtils.damp(player.g.rotation.x,returning?0:-.25,3,dt)
+ const a=Math.atan2(input.x,input.z);if(input.lengthSq())player.g.rotation.y+=Math.atan2(Math.sin(a-player.g.rotation.y),Math.cos(a-player.g.rotation.y))*Math.min(dt*5,1)
+ player.legs.forEach((leg,i)=>leg.rotation.x=Math.sin(elapsed*1.5+i*Math.PI)*.15)
+}else{
+ player.g.rotation.x=THREE.MathUtils.damp(player.g.rotation.x,0,5,dt)
+ if(input.lengthSq()){target.copy(player.g.position).addScaledVector(input,1.5);lookingEarth=false}
+ target.x=THREE.MathUtils.clamp(target.x,-220,220);target.z=THREE.MathUtils.clamp(target.z,-220,220)
+ const delta=new THREE.Vector3(target.x-player.g.position.x,0,target.z-player.g.position.z);walking=delta.length()>.12
+ if(walking){delta.normalize();player.g.position.addScaledVector(delta,Math.min(dt*3.4,Math.hypot(target.x-player.g.position.x,target.z-player.g.position.z)));const a=Math.atan2(delta.x,delta.z);player.g.rotation.y+=Math.atan2(Math.sin(a-player.g.rotation.y),Math.cos(a-player.g.rotation.y))*Math.min(dt*9,1)}
+ player.legs.forEach((leg,i)=>leg.rotation.x=walking?Math.sin(elapsed*7+i*Math.PI)*.45:0)
+ const surface=height(player.g.position.x,player.g.position.z)
+ if(jumping){verticalSpeed-=1.62*dt;player.g.position.y+=verticalSpeed*dt;if(player.g.position.y<=surface&&verticalSpeed<0){jumping=false;verticalSpeed=0;jumpCount=0;player.g.position.y=surface}}
+ else player.g.position.y=surface+(walking?Math.abs(Math.sin(elapsed*7))*.09:0)
+}
 zoomDistance=THREE.MathUtils.damp(zoomDistance,distance,10,dt)
 const immersion=1-THREE.MathUtils.smoothstep(zoomDistance,.9,3.5)
 const eye=new THREE.Vector3(player.g.position.x,player.g.position.y+1.8,player.g.position.z)
@@ -179,7 +230,7 @@ const lookTarget=lookingEarth?new THREE.Vector3().lerpVectors(focus,earth.positi
 lookTarget.lerp(eye.clone().addScaledVector(forward,20),immersion);camera.lookAt(lookTarget)
 player.g.visible=immersion<.45;hands.visible=immersion>.85;hands.scale.setScalar(THREE.MathUtils.smoothstep(immersion,.85,1))
 hands.position.y=walking?Math.sin(elapsed*7)*.012:Math.sin(elapsed*1.5)*.004;hands.rotation.z=walking?Math.sin(elapsed*3.5)*.015:0
-if(firstPerson!==(immersion>.85)){firstPerson=immersion>.85;hint.innerHTML=firstPerson?eyeHint:orbitHint}
-earth.rotation.y+=dt*.008;(marker.material as THREE.MeshBasicMaterial).opacity*=.98
+if(firstPerson!==(immersion>.85)){firstPerson=immersion>.85;hint.innerHTML=spacewalk?flightHint:firstPerson?eyeHint:orbitHint}
+starfield.position.copy(camera.position);earth.rotation.y+=dt*.008;(marker.material as THREE.MeshBasicMaterial).opacity*=.98
 const screen=player.g.position.clone().add(new THREE.Vector3(0,2.8,0)).project(camera);label.style.left=`${(screen.x*.5+.5)*innerWidth}px`;label.style.top=`${(-screen.y*.5+.5)*innerHeight}px`;label.style.opacity=screen.z<1&&!lookingEarth&&immersion<.2?'1':'0';companions.update(elapsed,dt,player.g.position);updateMap(elapsed);renderer.render(scene,camera)}
 focus.copy(player.g.position);animate();window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)})
