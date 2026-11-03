@@ -18,7 +18,16 @@ export function createRoomDaylight(canvas: HTMLCanvasElement, ambient: THREE.Hem
   const nightMiddle = new THREE.Color('#1d3047'), dayMiddle = new THREE.Color('#e4e5d1')
   const nightBottom = new THREE.Color('#354251'), dayBottom = new THREE.Color('#eee0be')
   const backgroundNight = new THREE.Color('#807869'), backgroundDay = new THREE.Color('#e8ddcc')
-  let lastMinute = -1, nextCheck = 0
+  let lastMinute = -1, nextCheck = 0, lastFrame=0,roomLightsOn=true,currentDaylight=1,targetAmbient=2.3,targetFill=10,initialized=false
+  function applyRoomLights(){
+    targetAmbient=roomLightsOn?1.15+currentDaylight*1.15:.08+currentDaylight*.8
+    targetFill=roomLightsOn?10+(1-currentDaylight)*22:0
+    const background=backgroundNight.clone().lerp(backgroundDay,currentDaylight)
+    if(!roomLightsOn)background.lerp(new THREE.Color('#141923'),(1-currentDaylight)*.85)
+    scene.background=background
+    if(scene.fog instanceof THREE.Fog)scene.fog.color.copy(background)
+    if(!initialized){ambient.intensity=targetAmbient;fill.intensity=targetFill;initialized=true}
+  }
   function refresh(force = false) {
     const date = new Date(), minute = Math.floor(date.getTime() / 60000)
     if (!force && minute === lastMinute) return
@@ -54,16 +63,18 @@ export function createRoomDaylight(canvas: HTMLCanvasElement, ambient: THREE.Hem
       ctx.lineTo(512, 512); ctx.fill()
     }
     texture.needsUpdate = true
-    ambient.intensity = 1.15 + daylight * 1.15
+    currentDaylight=daylight
     ambient.color.set(daylight > .5 ? '#fff2db' : '#d2d8e9')
     sun.intensity = .06 + daylight * 3.34
     sun.color.set(new THREE.Color('#ffd0a0').lerp(new THREE.Color('#ffe4bc'), daylight * (1 - twilight)))
-    fill.intensity = 10 + (1 - daylight) * 22
     fill.color.set(daylight > .5 ? '#ffe2bc' : '#ffd29b')
-    scene.background = backgroundNight.clone().lerp(backgroundDay, daylight)
-    if (scene.fog instanceof THREE.Fog) scene.fog.color.copy(scene.background)
+    applyRoomLights()
   }
   refresh(true)
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(true) })
-  return { texture, update(now: number) { if (now < nextCheck) return; nextCheck = now + 1000; refresh() } }
+  return {texture,setRoomLights(on:boolean){roomLightsOn=on;applyRoomLights()},update(now:number){
+    const dt=lastFrame?Math.min((now-lastFrame)/1000,.1):1/60;lastFrame=now
+    ambient.intensity=THREE.MathUtils.damp(ambient.intensity,targetAmbient,10,dt);fill.intensity=THREE.MathUtils.damp(fill.intensity,targetFill,10,dt)
+    if(now>=nextCheck){nextCheck=now+1000;refresh()}
+  }}
 }

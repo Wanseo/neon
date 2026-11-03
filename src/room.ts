@@ -16,7 +16,7 @@ const windIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 document.querySelector('#app')!.innerHTML = `
 <canvas id="room-canvas" aria-label="케이크와 촛불이 놓인 따뜻한 3D 식탁"></canvas>
 <header class="room-header"><a class="room-brand" href="./" aria-label="작은 식탁 홈"><span class="brand-mark">✳</span><span>작은 식탁<small>A LITTLE MOMENT TOGETHER</small></span></a><div class="room-header-actions"><button id="copy-room-link" type="button" hidden>초대 링크 <span>↗</span></button><button id="edit-table" type="button" hidden>초 설정 <span>↗</span></button><div class="presence"><i></i><span>함께 앉은 사람</span><b><span id="guest-count">1</span>명</b></div></div></header>
-<section class="room-copy"><span class="room-eyebrow">MAKE A LITTLE WISH</span><h1>오늘의 작은 순간을,<br>축하해요.</h1><p>거창한 이유가 없어도 괜찮아요.<br>당신을 위한 케이크 한 조각을 준비했어요.</p><div class="copy-rule"></div><span class="room-date">A SEAT, A CAKE, AND YOU.</span></section>
+<button id="room-light-switch" class="room-light-switch" type="button" aria-label="방 불 끄기" aria-pressed="true"><span aria-hidden="true">☼</span><b>방 불 끄기</b></button><section class="room-copy"><span class="room-eyebrow">MAKE A LITTLE WISH</span><h1>오늘의 작은 순간을,<br>축하해요.</h1><p>거창한 이유가 없어도 괜찮아요.<br>당신을 위한 케이크 한 조각을 준비했어요.</p><div class="copy-rule"></div><span class="room-date">A SEAT, A CAKE, AND YOU.</span></section>
 <div class="seat-label"><span>나</span> 오늘의 주인공</div>
 <section class="wish-controls"><div class="wish-caption" id="wish-caption" role="status">잠깐 눈을 감고, 작은 소원을 떠올려봐요.</div><button id="blow-candle">${windIcon}<span>후― 불기</span><small>MAKE A WISH</small></button><button id="relight-candle" hidden>다시 촛불 켜기 <span>↺</span></button></section>
 <footer class="room-footer"><span><i></i> 조금 느리게 머물러도 되는 곳</span><span>드래그로 둘러보기 <em>·</em> 휠로 가까이 보기</span></footer>
@@ -60,6 +60,9 @@ box(scene, 15, .19, .12, oak, 0, .13, -4.85)
 box(scene, .12, .19, 13, oak, -7.25, .13, 1.4)
 const skyCanvas = document.createElement('canvas'); skyCanvas.width = skyCanvas.height = 512
 const daylight = createRoomDaylight(skyCanvas, ambient, sun, fill, scene)
+let roomLightsOn=true
+const roomLightSwitch=document.querySelector<HTMLButtonElement>('#room-light-switch')!
+roomLightSwitch.addEventListener('click',()=>{roomLightsOn=!roomLightsOn;daylight.setRoomLights(roomLightsOn);document.body.classList.toggle('room-lights-off',!roomLightsOn);roomLightSwitch.setAttribute('aria-pressed',String(roomLightsOn));roomLightSwitch.setAttribute('aria-label',roomLightsOn?'방 불 끄기':'방 불 켜기');roomLightSwitch.querySelector('b')!.textContent=roomLightsOn?'방 불 끄기':'방 불 켜기'})
 const arch = new THREE.Shape(); arch.moveTo(-1.7, -2); arch.lineTo(1.7, -2); arch.lineTo(1.7, .35); arch.absarc(0, .35, 1.7, 0, Math.PI, false); arch.lineTo(-1.7, -2)
 const windowMaterial = new THREE.MeshBasicMaterial({ map: daylight.texture, toneMapped: false })
 const windowMesh = mesh(scene, new THREE.ShapeGeometry(arch), windowMaterial, -3, 3.2, -4.88)
