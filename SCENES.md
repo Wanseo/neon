@@ -9,7 +9,7 @@ When the user asks to bring the universe back (for example, “우주 불러와�
 
 The space source is `src/space.ts`, with its unchanged stylesheet in `src/space.css`. It was preserved from commit c18be69; only its stylesheet import path changed. Its other modules and assets remain in place. The room uses an independent stylesheet; styles do not leak between scenes.
 
-The initial dining room has one actual local participant, one chair, and one character. `setGuests` in `src/room.ts` creates/removes seats for a supplied participant list. Remote multi-device presence is not yet connected, and the UI does not simulate other visitors.
+The dining room opens an entry form for names (up to 8, comma/newline separated) and candle count (1–30). `setGuests` in `src/room.ts` creates/removes one named character, chair and place setting per manually entered participant. The first participant is the local user. Setup is saved in localStorage and editable via the table setup button. Remote multi-device presence is not yet connected; manually entered names represent the planned gathering, not live remote connections.
 
 ## Confirmed gathering preference
 

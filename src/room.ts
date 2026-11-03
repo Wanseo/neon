@@ -5,12 +5,13 @@ import { createRoomDaylight } from './room-daylight'
 const windIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 8h11c5 0 5-6 1-6-2 0-3 1-3 3M3 12h15c5 0 5 7 1 7-2 0-3-1-3-3M3 16h5c4 0 4 6 0 6"/></svg>'
 document.querySelector('#app')!.innerHTML = `
 <canvas id="room-canvas" aria-label="케이크와 촛불이 놓인 따뜻한 3D 식탁"></canvas>
-<header class="room-header"><a class="room-brand" href="./" aria-label="작은 식탁 홈"><span class="brand-mark">✳</span><span>작은 식탁<small>A LITTLE MOMENT TOGETHER</small></span></a><div class="presence"><i></i><span>나의 작은 방</span><b><span id="guest-count">1</span>명</b></div></header>
+<header class="room-header"><a class="room-brand" href="./" aria-label="작은 식탁 홈"><span class="brand-mark">✳</span><span>작은 식탁<small>A LITTLE MOMENT TOGETHER</small></span></a><div class="room-header-actions"><button id="edit-table" type="button">식탁 꾸미기 <span>↗</span></button><div class="presence"><i></i><span>함께 앉은 사람</span><b><span id="guest-count">1</span>명</b></div></div></header>
 <section class="room-copy"><span class="room-eyebrow">MAKE A LITTLE WISH</span><h1>오늘의 작은 순간을,<br>축하해요.</h1><p>거창한 이유가 없어도 괜찮아요.<br>당신을 위한 케이크 한 조각을 준비했어요.</p><div class="copy-rule"></div><span class="room-date">A SEAT, A CAKE, AND YOU.</span></section>
 <div class="seat-label"><span>나</span> 오늘의 주인공</div>
 <section class="wish-controls"><div class="wish-caption" id="wish-caption" role="status">잠깐 눈을 감고, 작은 소원을 떠올려봐요.</div><button id="blow-candle">${windIcon}<span>후― 불기</span><small>MAKE A WISH</small></button><button id="relight-candle" hidden>다시 촛불 켜기 <span>↺</span></button></section>
 <footer class="room-footer"><span><i></i> 조금 느리게 머물러도 되는 곳</span><span>드래그로 둘러보기 <em>·</em> 휠로 가까이 보기</span></footer>
-<div class="room-vignette"></div><div id="celebration" aria-hidden="true"></div>`
+<div class="room-vignette"></div><div id="celebration" aria-hidden="true"></div>
+<dialog id="table-setup" aria-labelledby="setup-title"><form id="table-setup-form"><button class="setup-close" id="close-setup" type="button" aria-label="닫기">×</button><span class="room-eyebrow">A TABLE FOR YOUR PEOPLE</span><h2 id="setup-title">누구와 함께 앉을까요?</h2><p class="setup-intro">이름만큼 자리를 준비하고,<br>케이크에 작은 촛불을 꽂아둘게요.</p><label for="guest-names">함께 앉을 사람<span>한 줄에 한 명씩 · 최대 8명</span></label><textarea id="guest-names" rows="3" maxlength="200" required placeholder="예: 완서&#10;지민"></textarea><p class="setup-help">쉼표로 구분해도 좋아요. 첫 번째 이름이 나의 자리예요.</p><label for="candle-count">케이크의 초<span>1–30개</span></label><div class="candle-input"><button type="button" id="fewer-candles" aria-label="초 하나 줄이기">−</button><input id="candle-count" type="number" inputmode="numeric" min="1" max="30" step="1" value="1" required aria-label="초 개수"><span>개</span><button type="button" id="more-candles" aria-label="초 하나 늘리기">+</button></div><button class="setup-submit" type="submit">우리 식탁 만들기 <span>↗</span></button></form></dialog>`
 
 const canvas = document.querySelector<HTMLCanvasElement>('#room-canvas')!
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
@@ -105,36 +106,63 @@ for (let i = 0; i < 8; i++) {
   const berry = sphere(cake, .09, strawberry, Math.cos(a + .35) * .45, .54, Math.sin(a + .35) * .45); berry.scale.set(.8, 1.25, .8)
 }
 const candle = new THREE.Group(); cake.add(candle); candle.position.y = .47
-mesh(candle, new THREE.CylinderGeometry(.045, .045, .48, 16), new THREE.MeshStandardMaterial({ color: '#b1bd9b', roughness: .7 }), 0, .24, 0)
-for (let i = 0; i < 4; i++) { const stripe = mesh(candle, new THREE.TorusGeometry(.046, .009, 4, 16), porcelain, 0, .08 + i * .11, 0); stripe.rotation.x = Math.PI / 2 }
+const stripeCanvas=document.createElement('canvas');stripeCanvas.width=64;stripeCanvas.height=256
+const stripeContext=stripeCanvas.getContext('2d')!;stripeContext.fillStyle='#b1bd9b';stripeContext.fillRect(0,0,64,256);stripeContext.strokeStyle='#f8f0de';stripeContext.lineWidth=11
+for(let y=-40;y<300;y+=54){stripeContext.beginPath();stripeContext.moveTo(0,y);stripeContext.lineTo(64,y+32);stripeContext.stroke()}
+const candleTexture=new THREE.CanvasTexture(stripeCanvas);candleTexture.colorSpace=THREE.SRGBColorSpace
+mesh(candle, new THREE.CylinderGeometry(.045,.045,.48,12),new THREE.MeshStandardMaterial({map:candleTexture,roughness:.7}),0,.24,0)
 mesh(candle, new THREE.CylinderGeometry(.007, .007, .045, 6), new THREE.MeshStandardMaterial({ color: '#514339' }), 0, .5, 0)
-const flame = new THREE.Group(); flame.position.y = .61; candle.add(flame)
-const outerFlame = sphere(flame, .072, new THREE.MeshBasicMaterial({ color: '#ffbe63' }), 0, 0, 0); outerFlame.scale.set(.7, 1.65, .7)
-const innerFlame = sphere(flame, .047, new THREE.MeshBasicMaterial({ color: '#fff6d6' }), 0, -.01, .015); innerFlame.scale.set(.65, 1.6, .65)
-const candleLight = new THREE.PointLight(0xffb85d, 1.4, 3); candleLight.position.y = .6; candle.add(candleLight)
+const flame = new THREE.Group(); flame.name='candle-flame'; flame.position.y = .61; candle.add(flame)
+const outerFlame = sphere(flame, .072, new THREE.MeshBasicMaterial({ color: '#ffbe63' }), 0, 0, 0); outerFlame.scale.set(.7, 1.65, .7);outerFlame.castShadow=false
+const innerFlame = sphere(flame, .047, new THREE.MeshBasicMaterial({ color: '#fff6d6' }), 0, -.01, .015); innerFlame.scale.set(.65, 1.6, .65);innerFlame.castShadow=false
+const candleLight = new THREE.PointLight(0xffb85d, 1.4, 3); candleLight.position.y = 1.08; cake.add(candleLight)
 const glowCanvas = document.createElement('canvas'); glowCanvas.width = glowCanvas.height = 64
 const glowContext = glowCanvas.getContext('2d')!, glowGradient = glowContext.createRadialGradient(32, 32, 0, 32, 32, 32)
 glowGradient.addColorStop(0, '#ffe9b780'); glowGradient.addColorStop(.3, '#ffc26730'); glowGradient.addColorStop(1, '#ffc26700'); glowContext.fillStyle = glowGradient; glowContext.fillRect(0, 0, 64, 64)
-const candleGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(glowCanvas), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); candleGlow.scale.set(.6, .6, .6); candleGlow.position.y = .61; candle.add(candleGlow)
+const candleGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(glowCanvas), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); candleGlow.name='candle-glow'; candleGlow.scale.set(.6, .6, .6); candleGlow.position.y = .61; candle.add(candleGlow)
+
+type CakeCandle={group:THREE.Group;flame:THREE.Group;glow:THREE.Sprite}
+const cakeCandles:CakeCandle[]=[{group:candle,flame,glow:candleGlow}]
+let candleCount=1
+function setCandleCount(count:number){
+ for(const item of cakeCandles.slice(1))cake.remove(item.group)
+ cakeCandles.length=1;candle.position.set(0,.47,0);candle.scale.setScalar(1);flame.visible=true;flame.scale.setScalar(1);candleGlow.visible=true
+ candleCount=count
+ for(let i=0;i<count;i++){
+  const group=i===0?candle:candle.clone(true)
+  const item=i===0?cakeCandles[0]:{group,flame:group.getObjectByName('candle-flame') as THREE.Group,glow:group.getObjectByName('candle-glow') as THREE.Sprite}
+  if(i>0){cake.add(group);cakeCandles.push(item)}
+  const angle=i*2.3999632297,r=count===1?0:.33*Math.sqrt((i+.5)/count)
+  group.position.set(Math.cos(angle)*r,.47,Math.sin(angle)*r);group.scale.setScalar(count>12?.72:count>5?.85:1)
+ }
+ cake.userData.candleCount=count
+}
 
 // A participant owns exactly one seat, place setting, and character; no filler guests.
+type Participant={id:string;name:string}
 const guests = new Map<string, THREE.Group>()
+const guestLabels=new Map<string,HTMLElement>()
+document.querySelector('.seat-label')!.remove()
+function namePalette(name:string){let hash=0;for(const char of name)hash=(Math.imul(hash,31)+char.codePointAt(0)!)>>>0;return{outfit:['#7c8b70','#ba8a7b','#8297a4','#b29a65','#9d8da9','#a29383'][hash%6],hair:['#655044','#443c36','#987552'][hash%3]}}
 const skin = new THREE.MeshStandardMaterial({ color: '#e9bd99', roughness: .83 })
-const hair = new THREE.MeshStandardMaterial({ color: '#655044', roughness: .95 })
 const ink = new THREE.MeshStandardMaterial({ color: '#493e36', roughness: .8 })
-function setGuests(ids: string[]) {
-  ids.forEach((id, index) => {
+function setGuests(people: Participant[]) {
+  const ids=people.map(person=>person.id)
+  people.forEach(({id,name}, index) => {
     let guest = guests.get(id)
     if (!guest) {
       guest = new THREE.Group(); guests.set(id, guest); scene.add(guest)
+      const colors=namePalette(name),outfit=new THREE.MeshStandardMaterial({color:colors.outfit,roughness:.84}),guestHair=new THREE.MeshStandardMaterial({color:colors.hair,roughness:.95})
+      guest.userData.outfit=outfit;guest.userData.hair=guestHair
+      const label=document.createElement('div');label.className='seat-label';const badge=document.createElement('span'),text=document.createElement('b');label.append(badge,text);document.querySelector('#app')!.append(label);guestLabels.set(id,label)
       mesh(guest, new THREE.CylinderGeometry(.46, .46, .12, 32), oak, 0, .75, 0)
       box(guest, .87, .65, .12, oak, 0, 1.15, -.38)
       box(guest, .73, .42, .045, sage, 0, 1.17, -.3)
       for (const x of [-.3, .3]) for (const z of [-.28, .28]) box(guest, .065, .75, .065, oak, x, .36, z)
       const body = mesh(guest, new THREE.CapsuleGeometry(.27, .35, 6, 16), porcelain, 0, 1.21, 0); body.scale.z = .8
-      const vest = sphere(guest, .29, sage, 0, 1.17, .08); vest.scale.set(1, 1.35, .6)
+      const vest = sphere(guest, .29, outfit, 0, 1.17, .08); vest.scale.set(1, 1.35, .6)
       sphere(guest, .33, skin, 0, 1.97, 0)
-      const cap = mesh(guest, new THREE.SphereGeometry(.34, 24, 16, 0, Math.PI * 2, 0, Math.PI * .55), hair, 0, 2.02, -.02); cap.rotation.x = -.14
+      const cap = mesh(guest, new THREE.SphereGeometry(.34, 24, 16, 0, Math.PI * 2, 0, Math.PI * .55), guestHair, 0, 2.02, -.02); cap.rotation.x = -.14
       for (const x of [-.11, .11]) { const eye = sphere(guest, .023, ink, x, 1.98, .302); eye.scale.y = 1.3; const cheek = sphere(guest, .045, rose, x * 1.7, 1.91, .27); cheek.scale.z = .12 }
       const smile = mesh(guest, new THREE.TorusGeometry(.045, .009, 5, 16, Math.PI), ink, 0, 1.91, .32); smile.rotation.z = Math.PI
       for (const x of [-.35, .35]) { const arm = mesh(guest, new THREE.CapsuleGeometry(.095, .32, 4, 10), porcelain, x, 1.3, .19); arm.rotation.x = -.8; sphere(guest, .09, skin, x, 1.15, .4) }
@@ -142,55 +170,73 @@ function setGuests(ids: string[]) {
       mesh(guest,new THREE.CylinderGeometry(.085,.075,.18,20),porcelain,.37,1.59,.82)
       for (const x of [-.16, .16]) { box(guest, .18, .43, .19, sage, x, .68, .19); box(guest, .19, .15, .31, ink, x, .43, .29) }
     }
+    const colors=namePalette(name);(guest.userData.outfit as THREE.MeshStandardMaterial).color.set(colors.outfit);(guest.userData.hair as THREE.MeshStandardMaterial).color.set(colors.hair);guest.userData.name=name
+    const label=guestLabels.get(id)!;label.querySelector('span')!.textContent=index===0?'나':name.slice(0,1);label.querySelector('b')!.textContent=name
     const angle = index / Math.max(ids.length, 1) * Math.PI * 2
     guest.position.set(Math.sin(angle) * 2.25, 0, -Math.cos(angle) * 2.25); guest.rotation.y = -angle
   })
-  for (const [id, guest] of guests) if (!ids.includes(id)) { scene.remove(guest); guest.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose() }); guests.delete(id) }
+  for (const [id, guest] of guests) if (!ids.includes(id)) { scene.remove(guest); guest.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose() }); (guest.userData.outfit as THREE.Material).dispose();(guest.userData.hair as THREE.Material).dispose();guestLabels.get(id)?.remove();guestLabels.delete(id);guests.delete(id) }
   document.querySelector('#guest-count')!.textContent = String(ids.length)
 }
-setGuests(['me'])
+setGuests([{id:'guest-0',name:'나'}])
 // A single local guest is the initial room state; remote presence can call setGuests.
 
 const smoke: THREE.Mesh[] = []
 const smokeMaterial = new THREE.MeshBasicMaterial({ color: '#c4b8aa', transparent: true, opacity: 0, depthWrite: false })
-for (let i = 0; i < 8; i++) smoke.push(sphere(candle, .032 + i * .006, smokeMaterial.clone(), 0, .57, 0))
+for (let i = 0; i < 12; i++) smoke.push(sphere(cake, .032 + i * .006, smokeMaterial.clone(), 0, .57, 0))
 let lit = true, blowing = false, blowStarted = 0, smokeStarted = -10
 const blowButton = document.querySelector<HTMLButtonElement>('#blow-candle')!, relightButton = document.querySelector<HTMLButtonElement>('#relight-candle')!, caption = document.querySelector('#wish-caption')!
 blowButton.addEventListener('click', () => {
   if (!lit || blowing) return
   blowing = true; blowStarted = performance.now(); blowButton.disabled = true; blowButton.querySelector('span')!.textContent = '후우―'; caption.textContent = '당신의 작은 소원이 이루어지기를.'
-  const guest = guests.get('me'); if (guest) guest.rotation.x = .08
+  const guest = guests.get('guest-0'); if (guest) guest.rotation.x = .08
 })
 relightButton.addEventListener('click', () => {
-  lit = true; blowing = false; flame.scale.setScalar(1); flame.rotation.z=0; flame.visible = true; candleGlow.visible = true; candleLight.intensity = 1.4; blowButton.hidden = false; blowButton.disabled = false; relightButton.hidden = true; blowButton.querySelector('span')!.textContent = '후― 불기'; caption.textContent = '새로운 소원을 하나 더 떠올려도 좋아요.'
+  lit = true; blowing = false; for(const item of cakeCandles){item.flame.scale.setScalar(1);item.flame.rotation.z=0;item.flame.visible=true;item.glow.visible=true} candleLight.intensity = 1.4; blowButton.hidden = false; blowButton.disabled = false; relightButton.hidden = true; blowButton.querySelector('span')!.textContent = '후― 불기'; caption.textContent = '새로운 소원을 하나 더 떠올려도 좋아요.'
 })
+const setupDialog=document.querySelector<HTMLDialogElement>('#table-setup')!,setupForm=document.querySelector<HTMLFormElement>('#table-setup-form')!
+const namesInput=document.querySelector<HTMLTextAreaElement>('#guest-names')!,countInput=document.querySelector<HTMLInputElement>('#candle-count')!
+let hasSavedSetup=false
+try{const saved=JSON.parse(localStorage.getItem('little-table-setup')||'null');if(saved&&Array.isArray(saved.names)&&saved.names.length>0&&saved.names.length<=8&&saved.names.every((name:unknown)=>typeof name==='string'&&name.trim().length>0&&[...name].length<=20)&&Number.isInteger(saved.candles)&&saved.candles>=1&&saved.candles<=30){namesInput.value=saved.names.join('\n');countInput.value=String(saved.candles);setGuests(saved.names.map((name:string,i:number)=>({id:`guest-${i}`,name})));setCandleCount(saved.candles);hasSavedSetup=true}}catch{/* The room also works when browser storage is unavailable. */}
+function validateNames(){const names=namesInput.value.split(/[,，\n]+/).map(name=>name.trim()).filter(Boolean);namesInput.setCustomValidity(names.length===0?'입장할 사람의 이름을 적어주세요.':names.length>8?'한 식탁에는 최대 8명까지 앉을 수 있어요.':names.some(name=>[...name].length>20)?'이름은 한 사람당 20자 이내로 적어주세요.':'');return names}
+namesInput.addEventListener('input',validateNames)
+setupForm.addEventListener('submit',event=>{
+ event.preventDefault();const names=validateNames();if(!setupForm.reportValidity())return
+ const count=Number(countInput.value);if(!Number.isInteger(count)||count<1||count>30)return
+ setGuests(names.map((name,i)=>({id:`guest-${i}`,name})));setCandleCount(count);relightButton.click();caption.textContent=`${names[0]}님의 소원과 함께, 촛불 ${count}개를 준비했어요.`
+ try{localStorage.setItem('little-table-setup',JSON.stringify({names,candles:count}))}catch{/* Saving is optional. */}
+ setupDialog.close()
+})
+document.querySelector('#edit-table')!.addEventListener('click',()=>setupDialog.showModal())
+document.querySelector('#close-setup')!.addEventListener('click',()=>setupDialog.close())
+for(const [selector,step]of [['#fewer-candles',-1],['#more-candles',1]] as const)document.querySelector(selector)!.addEventListener('click',()=>{countInput.value=String(Math.max(1,Math.min(30,(Number(countInput.value)||1)+step)))})
+if(!hasSavedSetup)setupDialog.showModal()
+
 let yaw = .35, elevation = .47, distance = 13.3, dragging = false, lastX = 0, lastY = 0
 canvas.addEventListener('pointerdown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; canvas.setPointerCapture(e.pointerId) })
 canvas.addEventListener('pointermove', e => { if (!dragging) return; yaw = THREE.MathUtils.clamp(yaw - (e.clientX - lastX) * .004, -.85, .85); elevation = THREE.MathUtils.clamp(elevation + (e.clientY - lastY) * .003, .22, .95); lastX = e.clientX; lastY = e.clientY })
 for (const event of ['pointerup', 'pointercancel']) canvas.addEventListener(event, () => dragging = false)
 canvas.addEventListener('wheel', e => { e.preventDefault(); distance = THREE.MathUtils.clamp(distance + e.deltaY * .008, 7, 18) }, { passive: false })
-const focus = new THREE.Vector3(), projected = new THREE.Vector3(), guestLabel = document.querySelector<HTMLElement>('.seat-label')!
+const focus = new THREE.Vector3(), projected = new THREE.Vector3(),labelOffset=new THREE.Vector3(0,2.65,0)
 function animate(now: number) {
   requestAnimationFrame(animate); daylight.update(now); const time = now / 1000
   const mobile = innerWidth < 650, screenOffset = mobile ? 0 : -1.25
   focus.set(screenOffset, 1.45, 0)
   camera.position.set(focus.x + Math.sin(yaw) * Math.cos(elevation) * distance, focus.y + Math.sin(elevation) * distance, Math.cos(yaw) * Math.cos(elevation) * distance)
   camera.lookAt(focus)
-  flame.rotation.z = Math.sin(time * 7) * .08; flame.scale.y = 1 + Math.sin(time * 11) * .08; candleLight.intensity = lit ? 1.4 + Math.sin(time * 9) * .15 : 0
+  cakeCandles.forEach((item,i)=>{item.flame.rotation.z=Math.sin(time*7+i)*.08;item.flame.scale.y=1+Math.sin(time*11+i)*.08});candleLight.intensity=lit?Math.min(3,1.4*Math.sqrt(candleCount))+Math.sin(time*9)*.15:0
   if (blowing) {
-    const progress = Math.min(1, (now - blowStarted) / 1000); flame.rotation.z = -.8 * progress; flame.scale.setScalar(1 - progress * .9)
+    const progress = Math.min(1, (now - blowStarted) / 1000); for(const item of cakeCandles){item.flame.rotation.z=-.8*progress;item.flame.scale.setScalar(1-progress*.9)}
     if (progress >= 1) {
-      lit = false; blowing = false; flame.visible = false; candleGlow.visible = false; smokeStarted = time; blowButton.hidden = true; relightButton.hidden = false
+      lit = false; blowing = false; for(const item of cakeCandles){item.flame.visible=false;item.glow.visible=false} smokeStarted = time; blowButton.hidden = true; relightButton.hidden = false
       caption.textContent = '소원을 담아, 후. 오늘도 당신의 날이에요.'
-      const guest = guests.get('me'); if (guest) guest.rotation.x = 0
+      const guest = guests.get('guest-0'); if (guest) guest.rotation.x = 0
       const celebration = document.querySelector('#celebration')!; celebration.innerHTML = Array.from({ length: 28 }, (_, i) => `<i style="--x:${(i * 37) % 100}%;--delay:${(i % 7) * .08}s;--color:${['#b6bb95', '#e4bbaa', '#d5b67a', '#f4e5c4'][i % 4]}"></i>`).join(''); setTimeout(() => celebration.replaceChildren(), 4000)
     }
   }
   const smokeAge = time - smokeStarted
-  smoke.forEach((puff, i) => { const t = smokeAge - i * .065; puff.visible = t > 0 && t < 2.3; if (puff.visible) { puff.position.set(Math.sin(time * 2 + i) * t * .06, .57 + t * .27, 0); puff.scale.setScalar(1 + t * 1.7); (puff.material as THREE.MeshBasicMaterial).opacity = .18 * (1 - t / 2.3) } })
-  const guest = guests.get('me')!
-  guest.position.y = Math.sin(time * 1.4) * .012
-  projected.copy(guest.position).add(new THREE.Vector3(0, 2.65, 0)).project(camera); guestLabel.style.left = `${(projected.x * .5 + .5) * innerWidth}px`; guestLabel.style.top = `${(-projected.y * .5 + .5) * innerHeight}px`
+  smoke.forEach((puff, i) => { const t = smokeAge - i * .065; puff.visible = t > 0 && t < 2.3; if (puff.visible) { const source=cakeCandles[i%cakeCandles.length].group;puff.position.set(source.position.x+Math.sin(time*2+i)*t*.06,source.position.y+source.scale.y*.57+t*.27,source.position.z); puff.scale.setScalar(1 + t * 1.7); (puff.material as THREE.MeshBasicMaterial).opacity = .18 * (1 - t / 2.3) } })
+  for(const [id,guest] of guests){guest.position.y=Math.sin(time*1.4)*.012;projected.copy(guest.position).add(labelOffset).project(camera);const label=guestLabels.get(id)!;label.style.left=`${(projected.x*.5+.5)*innerWidth}px`;label.style.top=`${(-projected.y*.5+.5)*innerHeight}px`;label.style.visibility=projected.z<1?'visible':'hidden'}
   renderer.render(scene, camera)
 }
 requestAnimationFrame(animate)
