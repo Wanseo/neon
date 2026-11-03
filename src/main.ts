@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { createCompanions } from './companions'
 import { createLunarOverview } from './lunar-overview'
 import moonSurfaceUrl from './assets/moon-lroc.jpg'
+import { createSparkles } from './sparkles'
 
 const icons = {
  sound: '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M16 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>',
@@ -83,6 +84,7 @@ function astronaut(x:number,z:number,scale=1){const g=new THREE.Group();g.positi
 const player=astronaut(0,5);player.g.rotation.y=Math.PI
 astronaut(-12,-13,.85).g.rotation.y=1.2
 const companions=createCompanions(scene,height)
+const updateSparkles=createSparkles(scene)
 // A compact lunar outpost with warm windows and solar arrays.
 const base=new THREE.Group();base.position.set(17,height(17,-23),-23);scene.add(base)
 const habitat=mesh(new THREE.CylinderGeometry(3.2,3.2,4,32),white,base,0,3.4,0);habitat.rotation.z=Math.PI/2
@@ -256,5 +258,5 @@ player.g.visible=immersion<.45;hands.visible=immersion>.85;hands.scale.setScalar
 hands.position.y=walking?Math.sin(elapsed*7)*.012:Math.sin(elapsed*1.5)*.004;hands.rotation.z=walking?Math.sin(elapsed*3.5)*.015:0
 if(firstPerson!==(immersion>.85)){firstPerson=immersion>.85;hint.innerHTML=spacewalk?flightHint:firstPerson?eyeHint:orbitHint}
 starfield.position.copy(camera.position);earth.rotation.y+=dt*.008;(marker.material as THREE.MeshBasicMaterial).opacity*=.98
-const screen=player.g.position.clone().add(new THREE.Vector3(0,2.8,0)).project(camera);label.style.left=`${(screen.x*.5+.5)*innerWidth}px`;label.style.top=`${(-screen.y*.5+.5)*innerHeight}px`;label.style.opacity=screen.z<1&&!lookingEarth&&immersion<.2?'1':'0';companions.update(elapsed,dt,player.g.position);updateMap(elapsed);renderer.render(scene,camera)}
+const screen=player.g.position.clone().add(new THREE.Vector3(0,2.8,0)).project(camera);label.style.left=`${(screen.x*.5+.5)*innerWidth}px`;label.style.top=`${(-screen.y*.5+.5)*innerHeight}px`;label.style.opacity=screen.z<1&&!lookingEarth&&immersion<.2?'1':'0';companions.update(elapsed,dt,player.g.position);updateSparkles(elapsed,dt,player.g.position,companions.objects[1].position);updateMap(elapsed);renderer.render(scene,camera)}
 focus.copy(player.g.position);animate();window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)})
