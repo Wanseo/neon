@@ -20,7 +20,7 @@ document.querySelector('#app')!.innerHTML = `
 <div class="seat-label"><span>나</span> 오늘의 주인공</div>
 <section class="wish-controls"><div class="wish-caption" id="wish-caption" role="status">잠깐 눈을 감고, 작은 소원을 떠올려봐요.</div><button id="blow-candle">${windIcon}<span>후― 불기</span><small>MAKE A WISH</small></button><button id="relight-candle" hidden>다시 촛불 켜기 <span>↺</span></button></section>
 <footer class="room-footer"><span><i></i> 조금 느리게 머물러도 되는 곳</span><span>드래그로 둘러보기 <em>·</em> 휠로 가까이 보기</span></footer>
-<div class="room-vignette"></div><div id="celebration" aria-hidden="true"></div>
+<button id="table-lamp-switch" class="lamp-switch" type="button" aria-label="테이블 조명 끄기" aria-pressed="true"><i></i><span>조명 켜짐</span></button><div class="room-vignette"></div><div id="celebration" aria-hidden="true"></div>
 <dialog id="table-setup" aria-labelledby="setup-title"><form id="table-setup-form"><span class="room-eyebrow">A SEAT JUST FOR YOU</span><h2 id="setup-title">누구인가요?</h2><p class="setup-intro">이 식탁에서 부를 이름을 알려주세요.<br>당신의 자리를 준비해둘게요.</p><label for="guest-names">내 이름</label><input id="guest-names" type="text" maxlength="20" autocomplete="off" required value="" aria-label="내 이름"><div id="host-candle-options"><label for="candle-count">케이크의 초<span>방을 만드는 사람만 설정 · 1–30개</span></label><div class="candle-input"><button type="button" id="fewer-candles" aria-label="초 하나 줄이기">−</button><input id="candle-count" type="number" inputmode="numeric" min="1" max="30" step="1" value="1" required aria-label="초 개수"><span>개</span><button type="button" id="more-candles" aria-label="초 하나 늘리기">+</button></div></div><button class="setup-submit" type="submit">입장하기 <span>↗</span></button></form></dialog>
 <dialog id="candle-settings" aria-labelledby="candle-settings-title"><form id="candle-settings-form"><button class="setup-close" id="close-candle-settings" type="button" aria-label="닫기">×</button><span class="room-eyebrow">YOUR LITTLE CELEBRATION</span><h2 id="candle-settings-title">촛불을 준비해요.</h2><p class="setup-intro">초대 링크를 만든 사람만 바꿀 수 있어요.</p><label for="edit-candle-count">케이크의 초<span>1–30개</span></label><input id="edit-candle-count" type="number" inputmode="numeric" min="1" max="30" step="1" required aria-label="초 개수 변경"><button class="setup-submit" type="submit">적용하기 <span>↗</span></button></form></dialog>
 <dialog id="invite-link-dialog" aria-labelledby="invite-link-title"><form method="dialog"><h2 id="invite-link-title">함께할 사람에게 보내주세요.</h2><input id="invite-link-value" readonly aria-label="초대 링크"><button class="setup-submit">닫기</button></form></dialog>`
@@ -96,12 +96,21 @@ const table = new THREE.Group(); scene.add(table)
 mesh(table, new THREE.CylinderGeometry(1.86, 1.86, .15, 72), oak, 0, 1.4, 0)
 mesh(table, new THREE.CylinderGeometry(.22, .35, 1.3, 24), oak, 0, .7, 0)
 mesh(table, new THREE.CylinderGeometry(.83, .83, .12, 40), oak, 0, .08, 0)
-// Soft linen runner, a glass vase, and a small flower.
+// Soft linen and a flower-shaped table lamp.
 box(table, .62, .012, 3.55, new THREE.MeshStandardMaterial({ color: '#e2d3bd', roughness: 1 }), .3, 1.484, 0)
 const vase = mesh(table, new THREE.CylinderGeometry(.12, .18, .4, 24), new THREE.MeshStandardMaterial({ color: '#aab7a2', roughness: .24, metalness: .05 }), 1.1, 1.69, -.4)
 mesh(vase, new THREE.CylinderGeometry(.012, .012, .65, 6), sage, 0, .35, 0)
-for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; const petal = sphere(vase, .07, porcelain, Math.cos(a) * .08, .69, Math.sin(a) * .08); petal.scale.y = .6 }
-sphere(vase, .045, brass, 0, .71, 0)
+const lampPetals=new THREE.MeshStandardMaterial({color:'#f8f0de',roughness:.45,emissive:'#ffd698',emissiveIntensity:.6})
+for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; const petal = sphere(vase, .07, lampPetals, Math.cos(a) * .08, .69, Math.sin(a) * .08); petal.scale.y = .6 }
+const lampBulbMaterial=new THREE.MeshStandardMaterial({color:'#f4d99d',roughness:.3,emissive:'#ffcb78',emissiveIntensity:1.6})
+sphere(vase,.045,lampBulbMaterial,0,.71,0)
+const tableLampLight=new THREE.PointLight(0xffce8c,8,4,2);tableLampLight.position.set(0,.62,0);vase.add(tableLampLight)
+let lampOn=true
+const lampSwitch=document.querySelector<HTMLButtonElement>('#table-lamp-switch')!
+function toggleTableLamp(){lampOn=!lampOn;tableLampLight.intensity=lampOn?8:0;lampPetals.emissiveIntensity=lampOn?.6:0;lampBulbMaterial.emissiveIntensity=lampOn?1.6:0;lampSwitch.setAttribute('aria-pressed',String(lampOn));lampSwitch.setAttribute('aria-label',lampOn?'테이블 조명 끄기':'테이블 조명 켜기');lampSwitch.querySelector('span')!.textContent=lampOn?'조명 켜짐':'조명 꺼짐'}
+lampSwitch.addEventListener('click',toggleTableLamp)
+const lampRay=new THREE.Raycaster(),lampPointer=new THREE.Vector2(),lampScreenPosition=new THREE.Vector3()
+
 
 // The cake is modelled in layers, with piped cream, berries, and one striped candle.
 const cake = new THREE.Group(); cake.position.set(-.15, 1.49, .25); table.add(cake)
@@ -236,10 +245,11 @@ inviteButton.addEventListener('click',async()=>{
 })
 setupDialog.showModal()
 
-let yaw = .35, elevation = .47, distance = 13.3, dragging = false, lastX = 0, lastY = 0
-canvas.addEventListener('pointerdown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; canvas.setPointerCapture(e.pointerId) })
-canvas.addEventListener('pointermove', e => { if (!dragging) return; yaw = THREE.MathUtils.clamp(yaw - (e.clientX - lastX) * .004, -.85, .85); elevation = THREE.MathUtils.clamp(elevation + (e.clientY - lastY) * .003, .22, .95); lastX = e.clientX; lastY = e.clientY })
-for (const event of ['pointerup', 'pointercancel']) canvas.addEventListener(event, () => dragging = false)
+let yaw = .35, elevation = .47, distance = 13.3, dragging = false, lastX = 0, lastY = 0, startX=0,startY=0,wasDragged=false
+canvas.addEventListener('pointerdown', e => { dragging = true;wasDragged=false;startX=lastX=e.clientX;startY=lastY=e.clientY; canvas.setPointerCapture(e.pointerId) })
+canvas.addEventListener('pointermove', e => { if (!dragging) return;if(Math.hypot(e.clientX-startX,e.clientY-startY)>5)wasDragged=true; yaw = THREE.MathUtils.clamp(yaw - (e.clientX - lastX) * .004, -.85, .85); elevation = THREE.MathUtils.clamp(elevation + (e.clientY - lastY) * .003, .22, .95); lastX = e.clientX; lastY = e.clientY })
+canvas.addEventListener('pointerup',e=>{if(!dragging)return;dragging=false;if(wasDragged)return;const rect=canvas.getBoundingClientRect();lampPointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);lampRay.setFromCamera(lampPointer,camera);if(lampRay.intersectObject(vase,true).length)toggleTableLamp()})
+canvas.addEventListener('pointercancel',()=>{dragging=false;wasDragged=true})
 canvas.addEventListener('wheel', e => { e.preventDefault(); distance = THREE.MathUtils.clamp(distance + e.deltaY * .008, 7, 18) }, { passive: false })
 const focus = new THREE.Vector3(), projected = new THREE.Vector3(),labelOffset=new THREE.Vector3(0,2.65,0)
 function animate(now: number) {
@@ -261,6 +271,7 @@ function animate(now: number) {
   const smokeAge = time - smokeStarted
   smoke.forEach((puff, i) => { const t = smokeAge - i * .065; puff.visible = t > 0 && t < 2.3; if (puff.visible) { const source=cakeCandles[i%cakeCandles.length].group;puff.position.set(source.position.x+Math.sin(time*2+i)*t*.06,source.position.y+source.scale.y*.57+t*.27,source.position.z); puff.scale.setScalar(1 + t * 1.7); (puff.material as THREE.MeshBasicMaterial).opacity = .18 * (1 - t / 2.3) } })
   for(const [id,guest] of guests){guest.userData.updateFace?.(time,blowing&&id==='guest-0');guest.position.y=Math.sin(time*1.4)*.012;projected.copy(guest.position).add(labelOffset).project(camera);const label=guestLabels.get(id)!;label.style.left=`${(projected.x*.5+.5)*innerWidth}px`;label.style.top=`${(-projected.y*.5+.5)*innerHeight}px`;label.style.visibility=projected.z<1?'visible':'hidden'}
+  vase.getWorldPosition(lampScreenPosition);lampScreenPosition.y+=1.03;lampScreenPosition.project(camera);lampSwitch.style.left=`${(lampScreenPosition.x*.5+.5)*innerWidth}px`;lampSwitch.style.top=`${(-lampScreenPosition.y*.5+.5)*innerHeight}px`;lampSwitch.style.visibility=lampScreenPosition.z<1?'visible':'hidden'
   renderer.render(scene, camera)
 }
 requestAnimationFrame(animate)
