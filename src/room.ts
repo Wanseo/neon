@@ -1,6 +1,7 @@
 import './room.css'
 import * as THREE from 'three'
 import { createRoomDaylight } from './room-daylight'
+import { createRoomAvatarHead } from './room-avatar'
 
 // Room ownership is kept in this browser; invitees receive the room ID and cake setting.
 const roomParams=new URLSearchParams(location.hash.slice(1))
@@ -154,7 +155,7 @@ type Participant={id:string;name:string}
 const guests = new Map<string, THREE.Group>()
 const guestLabels=new Map<string,HTMLElement>()
 document.querySelector('.seat-label')!.remove()
-function namePalette(name:string){let hash=0;for(const char of name)hash=(Math.imul(hash,31)+char.codePointAt(0)!)>>>0;return{outfit:['#7c8b70','#ba8a7b','#8297a4','#b29a65','#9d8da9','#a29383'][hash%6],hair:['#655044','#443c36','#987552'][hash%3]}}
+function namePalette(name:string){let hash=0;for(const char of name)hash=(Math.imul(hash,31)+char.codePointAt(0)!)>>>0;return{outfit:['#7c8b70','#ba8a7b','#8297a4','#b29a65','#9d8da9','#a29383'][hash%6],hair:['#302b28','#342d29','#272624'][hash%3]}}
 const skin = new THREE.MeshStandardMaterial({ color: '#e9bd99', roughness: .83 })
 const ink = new THREE.MeshStandardMaterial({ color: '#493e36', roughness: .8 })
 function setGuests(people: Participant[]) {
@@ -163,7 +164,7 @@ function setGuests(people: Participant[]) {
     let guest = guests.get(id)
     if (!guest) {
       guest = new THREE.Group(); guests.set(id, guest); scene.add(guest)
-      const colors=namePalette(name),outfit=new THREE.MeshStandardMaterial({color:colors.outfit,roughness:.84}),guestHair=new THREE.MeshStandardMaterial({color:colors.hair,roughness:.95})
+      const colors=namePalette(name),outfit=new THREE.MeshStandardMaterial({color:colors.outfit,roughness:.84}),guestHair=new THREE.MeshStandardMaterial({color:colors.hair,roughness:.48})
       guest.userData.outfit=outfit;guest.userData.hair=guestHair
       const label=document.createElement('div');label.className='seat-label';const badge=document.createElement('span'),text=document.createElement('b');label.append(badge,text);document.querySelector('#app')!.append(label);guestLabels.set(id,label)
       mesh(guest, new THREE.CylinderGeometry(.46, .46, .12, 32), oak, 0, .75, 0)
@@ -172,10 +173,7 @@ function setGuests(people: Participant[]) {
       for (const x of [-.3, .3]) for (const z of [-.28, .28]) box(guest, .065, .75, .065, oak, x, .36, z)
       const body = mesh(guest, new THREE.CapsuleGeometry(.27, .35, 6, 16), porcelain, 0, 1.21, 0); body.scale.z = .8
       const vest = sphere(guest, .29, outfit, 0, 1.17, .08); vest.scale.set(1, 1.35, .6)
-      sphere(guest, .33, skin, 0, 1.97, 0)
-      const cap = mesh(guest, new THREE.SphereGeometry(.34, 24, 16, 0, Math.PI * 2, 0, Math.PI * .55), guestHair, 0, 2.02, -.02); cap.rotation.x = -.14
-      for (const x of [-.11, .11]) { const eye = sphere(guest, .023, ink, x, 1.98, .302); eye.scale.y = 1.3; const cheek = sphere(guest, .045, rose, x * 1.7, 1.91, .27); cheek.scale.z = .12 }
-      const smile = mesh(guest, new THREE.TorusGeometry(.045, .009, 5, 16, Math.PI), ink, 0, 1.91, .32); smile.rotation.z = Math.PI
+      guest.userData.updateFace=createRoomAvatarHead(guest,guestHair)
       for (const x of [-.35, .35]) { const arm = mesh(guest, new THREE.CapsuleGeometry(.095, .32, 4, 10), porcelain, x, 1.3, .19); arm.rotation.x = -.8; sphere(guest, .09, skin, x, 1.15, .4) }
       mesh(guest,new THREE.CylinderGeometry(.24,.24,.025,32),porcelain,0,1.5,.88)
       mesh(guest,new THREE.CylinderGeometry(.085,.075,.18,20),porcelain,.37,1.59,.82)
@@ -262,7 +260,7 @@ function animate(now: number) {
   }
   const smokeAge = time - smokeStarted
   smoke.forEach((puff, i) => { const t = smokeAge - i * .065; puff.visible = t > 0 && t < 2.3; if (puff.visible) { const source=cakeCandles[i%cakeCandles.length].group;puff.position.set(source.position.x+Math.sin(time*2+i)*t*.06,source.position.y+source.scale.y*.57+t*.27,source.position.z); puff.scale.setScalar(1 + t * 1.7); (puff.material as THREE.MeshBasicMaterial).opacity = .18 * (1 - t / 2.3) } })
-  for(const [id,guest] of guests){guest.position.y=Math.sin(time*1.4)*.012;projected.copy(guest.position).add(labelOffset).project(camera);const label=guestLabels.get(id)!;label.style.left=`${(projected.x*.5+.5)*innerWidth}px`;label.style.top=`${(-projected.y*.5+.5)*innerHeight}px`;label.style.visibility=projected.z<1?'visible':'hidden'}
+  for(const [id,guest] of guests){guest.userData.updateFace?.(time,blowing&&id==='guest-0');guest.position.y=Math.sin(time*1.4)*.012;projected.copy(guest.position).add(labelOffset).project(camera);const label=guestLabels.get(id)!;label.style.left=`${(projected.x*.5+.5)*innerWidth}px`;label.style.top=`${(-projected.y*.5+.5)*innerHeight}px`;label.style.visibility=projected.z<1?'visible':'hidden'}
   renderer.render(scene, camera)
 }
 requestAnimationFrame(animate)
