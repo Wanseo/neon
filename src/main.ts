@@ -39,19 +39,19 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 
 const canvas = document.querySelector<HTMLCanvasElement>('#universe')!
 const renderer = new THREE.WebGLRenderer({canvas, antialias:true})
-renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(innerWidth,innerHeight)
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5,Math.sqrt(2400000/(innerWidth*innerHeight)))); renderer.setSize(innerWidth,innerHeight)
 renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap
 renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.15
 const scene=new THREE.Scene(); scene.background=new THREE.Color('#03060b'); scene.fog=new THREE.FogExp2('#080b12',0.003)
 const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,0.1,5000)
 scene.add(new THREE.HemisphereLight(0xc9ddff,0x24242e,1.3))
-const sun=new THREE.DirectionalLight(0xfff1da,3.2);sun.position.set(-30,35,-20);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-45,right:45,top:45,bottom:-45});sun.shadow.bias=-0.0004;scene.add(sun)
+const sun=new THREE.DirectionalLight(0xfff1da,3.2);sun.position.set(-30,35,-20);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-45,right:45,top:45,bottom:-45});sun.shadow.bias=-0.0004;scene.add(sun)
 let seed=42;function random(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
 const craters=Array.from({length:65},()=>({x:(random()-.5)*190,z:(random()-.5)*190,r:1+random()*8}))
 const moonRadius=650
 function height(x:number,z:number){const radius=Math.hypot(x,z);const curve=Math.sqrt(Math.max(0,moonRadius*moonRadius-radius*radius))-moonRadius;let y=Math.sin(x*.06)*1.5+Math.cos(z*.085)*.9+Math.sin(x*.22+z*.14)*.22;for(const c of craters){const d=Math.hypot(x-c.x,z-c.z)/c.r;if(d<1.5)y+=-c.r*.19*Math.exp(-d*d*3)+c.r*.07*Math.exp(-Math.pow((d-1)*5,2))}return curve+y*(1-THREE.MathUtils.smoothstep(radius,240,300))+.04}
 // A circular, curved patch follows the globe instead of exposing a square plane.
-const groundGeo=new THREE.RingGeometry(0,300,256,160);groundGeo.rotateX(-Math.PI/2)
+const groundGeo=new THREE.RingGeometry(0,300,192,96);groundGeo.rotateX(-Math.PI/2)
 const pos=groundGeo.attributes.position;const colors=[]
 for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getZ(i);pos.setY(i,height(x,z));groundGeo.attributes.uv.setXY(i,x/600+.5,z/600+.5);const v=.22+random()*.09;colors.push(v*.94,v*.97,v*1.03)}
 groundGeo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));groundGeo.computeVertexNormals()
@@ -65,13 +65,16 @@ terrainMaterial.onBeforeCompile=shader=>{
 const ground=new THREE.Mesh(groundGeo,terrainMaterial);ground.receiveShadow=true;scene.add(ground)
 const moonTexture=new THREE.TextureLoader().load(moonSurfaceUrl);moonTexture.colorSpace=THREE.SRGBColorSpace
 // Recess the globe beneath the detailed patch so crater valleys never intersect it.
-const globeGeometry=new THREE.SphereGeometry(moonRadius,192,128)
+const globeGeometry=new THREE.SphereGeometry(moonRadius,128,96)
 const globePositions=globeGeometry.attributes.position
 for(let i=0;i<globePositions.count;i++)if(globePositions.getY(i)>0){const r=Math.hypot(globePositions.getX(i),globePositions.getZ(i));globePositions.setY(i,globePositions.getY(i)-6*(1-THREE.MathUtils.smoothstep(r,240,300)))}
 globeGeometry.computeVertexNormals()
 const lunarGlobe=new THREE.Mesh(globeGeometry,new THREE.MeshStandardMaterial({color:0x929292,roughness:1,map:moonTexture,bumpMap:noise,bumpScale:.5,fog:false}));lunarGlobe.position.y=-moonRadius;scene.add(lunarGlobe)
 const rockGeo=new THREE.IcosahedronGeometry(1,0);const rockMat=new THREE.MeshStandardMaterial({color:0x747780,roughness:1,flatShading:true})
-for(let i=0;i<420;i++){const x=(random()-.5)*220,z=(random()-.5)*220;if(Math.hypot(x,z)<3)continue;const rock=new THREE.Mesh(rockGeo,rockMat);const s=.08+random()**3*1.8;rock.position.set(x,height(x,z)+s*.25,z);rock.scale.set(s,s*(.4+random()*.5),s);rock.rotation.set(random()*2,random()*6,random());rock.castShadow=true;rock.receiveShadow=true;scene.add(rock)}
+// One instanced batch replaces hundreds of separate rock draw calls.
+const rocks=new THREE.InstancedMesh(rockGeo,rockMat,420);const rockTransform=new THREE.Object3D();let rockCount=0
+for(let i=0;i<420;i++){const x=(random()-.5)*220,z=(random()-.5)*220;if(Math.hypot(x,z)<3)continue;const s=.08+random()**3*1.8;rockTransform.position.set(x,height(x,z)+s*.25,z);rockTransform.scale.set(s,s*(.4+random()*.5),s);rockTransform.rotation.set(random()*2,random()*6,random());rockTransform.updateMatrix();rocks.setMatrixAt(rockCount++,rockTransform.matrix)}
+rocks.count=rockCount;rocks.castShadow=true;rocks.receiveShadow=true;rocks.computeBoundingSphere();scene.add(rocks)
 const starGeo=new THREE.BufferGeometry();const starPositions=[];for(let i=0;i<3600;i++){const v=new THREE.Vector3((random()-.5)*2,random()*.95+.03,(random()-.5)*2).normalize().multiplyScalar(450);starPositions.push(v.x,v.y,v.z)}starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPositions,3));const starMat=new THREE.PointsMaterial({color:0xdce9ff,size:.65,transparent:true,opacity:.7,sizeAttenuation:true});const starfield=new THREE.Points(starGeo,starMat);scene.add(starfield)
 // A painted globe with clouds, land masses, and an atmospheric rim.
 const earthCanvas=document.createElement('canvas');earthCanvas.width=1024;earthCanvas.height=512;const ec=earthCanvas.getContext('2d')!;ec.fillStyle='#15578e';ec.fillRect(0,0,1024,512)
@@ -161,33 +164,31 @@ const updateLunarOverview=createLunarOverview()
 const mapCanvas=document.querySelector<HTMLCanvasElement>('#minimap')!
 mapCanvas.width=mapCanvas.height=440
 const mapContext=mapCanvas.getContext('2d')!
-const mapBackground=document.createElement('canvas');mapBackground.width=mapBackground.height=440
+// Bake terrain once. Moving the map only crops this raster; it never recalculates craters.
+const mapBackground=document.createElement('canvas');const mapResolution=256,worldSpan=600
+mapBackground.width=mapBackground.height=mapResolution
 const mapPaint=mapBackground.getContext('2d')!
 let mapCenterX=0,mapCenterZ=-6,mapSpan=84,mapLastTime=-1
 const trail:THREE.Vector2[]=[new THREE.Vector2(0,5)]
 function mapPoint(x:number,z:number){return new THREE.Vector2(220+(x-mapCenterX)*440/mapSpan,220+(z-mapCenterZ)*440/mapSpan)}
-function paintMap(){
- const data=mapPaint.createImageData(440,440)
- for(let y=0;y<440;y++)for(let x=0;x<440;x++){
-  const wx=mapCenterX+(x-220)*mapSpan/440,wz=mapCenterZ+(y-220)*mapSpan/440
-  const h=height(wx,wz),slope=height(wx-.5,wz-.6)-h
-  const grain=Math.sin(x*127.1+y*311.7)*43758.5453;const v=THREE.MathUtils.clamp(42+h*3+slope*65+(grain-Math.floor(grain))*7,16,104)
-  const i=(y*440+x)*4;data.data[i]=v*.83;data.data[i+1]=v*.98;data.data[i+2]=v*1.12;data.data[i+3]=255
- }
- mapPaint.putImageData(data,0,0)
- mapPaint.strokeStyle='#a7b8c00c';mapPaint.lineWidth=1
- for(let i=0;i<=440;i+=55){mapPaint.beginPath();mapPaint.moveTo(i,0);mapPaint.lineTo(i,440);mapPaint.moveTo(0,i);mapPaint.lineTo(440,i);mapPaint.stroke()}
- // Boulders match the scene's broad rocky terrain without obscuring the route.
- for(const c of craters){const p=mapPoint(c.x,c.z),r=c.r*440/mapSpan;mapPaint.beginPath();mapPaint.ellipse(p.x,p.y,r,r*.92,0,0,Math.PI*2);mapPaint.strokeStyle='#b8c5d31a';mapPaint.lineWidth=2;mapPaint.stroke()}
+const mapPixels=mapPaint.createImageData(mapResolution,mapResolution)
+for(let y=0;y<mapResolution;y++)for(let x=0;x<mapResolution;x++){
+ const wx=(x/mapResolution-.5)*worldSpan,wz=(y/mapResolution-.5)*worldSpan
+ const curve=Math.sqrt(Math.max(0,moonRadius*moonRadius-wx*wx-wz*wz))-moonRadius
+ const h=height(wx,wz)-curve,slope=height(wx-.5,wz-.6)-height(wx,wz)
+ const grain=Math.sin(x*127.1+y*311.7)*43758.5453,v=THREE.MathUtils.clamp(42+h*3+slope*65+(grain-Math.floor(grain))*7,16,104)
+ const i=(y*mapResolution+x)*4;mapPixels.data[i]=v*.83;mapPixels.data[i+1]=v*.98;mapPixels.data[i+2]=v*1.12;mapPixels.data[i+3]=255
 }
-paintMap()
+mapPaint.putImageData(mapPixels,0,0)
 function updateMap(time:number){
  if(time-mapLastTime<.12)return;mapLastTime=time
  const p=player.g.position,last=trail[trail.length-1]
  updateLunarOverview(p.x,p.z,Math.max(0,p.y-height(p.x,p.z)),time)
  if(Math.hypot(p.x-last.x,p.z-last.y)>.6){trail.push(new THREE.Vector2(p.x,p.z));if(trail.length>1400)trail.shift()}
- if(Math.abs(p.x-mapCenterX)>mapSpan*.38||Math.abs(p.z-mapCenterZ)>mapSpan*.38){mapCenterX=p.x;mapCenterZ=p.z;paintMap()}
- mapContext.clearRect(0,0,440,440);mapContext.drawImage(mapBackground,0,0)
+ if(Math.abs(p.x-mapCenterX)>mapSpan*.38||Math.abs(p.z-mapCenterZ)>mapSpan*.38){mapCenterX=p.x;mapCenterZ=p.z;}
+ mapContext.clearRect(0,0,440,440);mapContext.drawImage(mapBackground,(mapCenterX-mapSpan/2+worldSpan/2)/worldSpan*mapResolution,(mapCenterZ-mapSpan/2+worldSpan/2)/worldSpan*mapResolution,mapSpan/worldSpan*mapResolution,mapSpan/worldSpan*mapResolution,0,0,440,440)
+ mapContext.strokeStyle='#b8c5d31a';mapContext.lineWidth=2
+ for(const c of craters){const point=mapPoint(c.x,c.z),r=c.r*440/mapSpan;if(point.x+r<0||point.x-r>440||point.y+r<0||point.y-r>440)continue;mapContext.beginPath();mapContext.ellipse(point.x,point.y,r,r*.92,0,0,Math.PI*2);mapContext.stroke()}
  const basePoint=mapPoint(17,-23),start=mapPoint(0,5),current=mapPoint(p.x,p.z)
  // A quiet dotted guide connects the landing point and the outpost.
  mapContext.beginPath();mapContext.moveTo(start.x,start.y);mapContext.lineTo(basePoint.x,basePoint.y);mapContext.strokeStyle='#dfba794c';mapContext.lineWidth=2;mapContext.setLineDash([4,9]);mapContext.stroke();mapContext.setLineDash([])
@@ -219,12 +220,14 @@ const planetTravel=createPlanetTravel(canvas,player.g,companions.objects,()=>{
  player.g.position.set(12,height(12,-16),-16);target.copy(player.g.position);focus.copy(player.g.position);distance=15;zoomDistance=15;yaw=0;pitch=.18;lookingEarth=false;setFlight(false)
  toast('달의 고요한 기지로 돌아왔어요.')
 })
+const moveInput=new THREE.Vector3(),moveDelta=new THREE.Vector3(),worldUp=new THREE.Vector3(0,1,0)
+const eyePosition=new THREE.Vector3(),focusTarget=new THREE.Vector3(),cameraOffset=new THREE.Vector3(),cameraForward=new THREE.Vector3(),cameraTarget=new THREE.Vector3(),projectedLabel=new THREE.Vector3(),forwardTarget=new THREE.Vector3()
 const clock=new THREE.Clock();let elapsed=0;const label=document.querySelector<HTMLElement>('.name-tag')!
 function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.05);elapsed+=dt
 if(planetTravel.active){planetTravel.update(dt,elapsed,keys,renderer);return}
 let dx=0,dz=0
 if(!returning){if(keys.has('w')||keys.has('arrowup'))dz--;if(keys.has('s')||keys.has('arrowdown'))dz++;if(keys.has('a')||keys.has('arrowleft'))dx--;if(keys.has('d')||keys.has('arrowright'))dx++}
-const input=new THREE.Vector3(dx,0,dz);if(input.lengthSq()>1)input.normalize();input.applyAxisAngle(new THREE.Vector3(0,1,0),yaw)
+const input=moveInput.set(dx,0,dz);if(input.lengthSq()>1)input.normalize();input.applyAxisAngle(worldUp,yaw)
 let walking=false
 if(spacewalk){
  if(returning){const destination=landingTarget;flightVelocity.x=THREE.MathUtils.clamp((destination.x-player.g.position.x)*1.8,-48,48);flightVelocity.z=THREE.MathUtils.clamp((destination.z-player.g.position.z)*1.8,-48,48);flightVelocity.y=-Math.min(48,Math.max(1,(player.g.position.y-destination.y)*.7))}
@@ -245,7 +248,7 @@ if(spacewalk){
  player.g.rotation.x=THREE.MathUtils.damp(player.g.rotation.x,0,5,dt)
  if(input.lengthSq()){target.copy(player.g.position).addScaledVector(input,1.5);lookingEarth=false}
  target.x=THREE.MathUtils.clamp(target.x,-220,220);target.z=THREE.MathUtils.clamp(target.z,-220,220)
- const delta=new THREE.Vector3(target.x-player.g.position.x,0,target.z-player.g.position.z);walking=delta.length()>.12
+ const delta=moveDelta.set(target.x-player.g.position.x,0,target.z-player.g.position.z);walking=delta.length()>.12
  if(walking){delta.normalize();player.g.position.addScaledVector(delta,Math.min(dt*10.2,Math.hypot(target.x-player.g.position.x,target.z-player.g.position.z)));const a=Math.atan2(delta.x,delta.z);player.g.rotation.y+=Math.atan2(Math.sin(a-player.g.rotation.y),Math.cos(a-player.g.rotation.y))*Math.min(dt*9,1)}
  player.legs.forEach((leg,i)=>leg.rotation.x=walking?Math.sin(elapsed*7+i*Math.PI)*.45:0)
  const surface=height(player.g.position.x,player.g.position.z)
@@ -258,17 +261,17 @@ const spaceView=THREE.MathUtils.smoothstep(player.g.position.y-height(player.g.p
 const nextFov=THREE.MathUtils.damp(camera.fov,48+spaceView*17,4,dt);if(Math.abs(nextFov-camera.fov)>.001){camera.fov=nextFov;camera.updateProjectionMatrix()}
 zoomDistance=THREE.MathUtils.damp(zoomDistance,distance,10,dt)
 const immersion=1-THREE.MathUtils.smoothstep(zoomDistance,.9,3.5)
-const eye=new THREE.Vector3(player.g.position.x,player.g.position.y+1.8,player.g.position.z)
-focus.lerp(new THREE.Vector3(player.g.position.x,player.g.position.y+1.5,player.g.position.z),1-Math.exp(-10*dt))
-const offset=new THREE.Vector3(Math.sin(yaw)*Math.cos(pitch)*zoomDistance,Math.sin(pitch)*zoomDistance,Math.cos(yaw)*Math.cos(pitch)*zoomDistance)
+const eye=eyePosition.set(player.g.position.x,player.g.position.y+1.8,player.g.position.z)
+focus.lerp(focusTarget.set(player.g.position.x,player.g.position.y+1.5,player.g.position.z),1-Math.exp(-10*dt))
+const offset=cameraOffset.set(Math.sin(yaw)*Math.cos(pitch)*zoomDistance,Math.sin(pitch)*zoomDistance,Math.cos(yaw)*Math.cos(pitch)*zoomDistance)
 camera.position.copy(focus).add(offset).lerp(eye,immersion)
 camera.position.y=Math.max(camera.position.y,height(camera.position.x,camera.position.z)+.5)
-const forward=new THREE.Vector3(-Math.sin(yaw)*Math.cos(pitch),-Math.sin(pitch),-Math.cos(yaw)*Math.cos(pitch))
-const lookTarget=lookingEarth?new THREE.Vector3().lerpVectors(focus,earth.position,.45):focus.clone()
-lookTarget.lerp(eye.clone().addScaledVector(forward,20),immersion);camera.lookAt(lookTarget)
+const forward=cameraForward.set(-Math.sin(yaw)*Math.cos(pitch),-Math.sin(pitch),-Math.cos(yaw)*Math.cos(pitch))
+const lookTarget=lookingEarth?cameraTarget.lerpVectors(focus,earth.position,.45):cameraTarget.copy(focus)
+lookTarget.lerp(forwardTarget.copy(eye).addScaledVector(forward,20),immersion);camera.lookAt(lookTarget)
 player.g.visible=immersion<.45;hands.visible=immersion>.85;hands.scale.setScalar(THREE.MathUtils.smoothstep(immersion,.85,1))
 hands.position.y=walking?Math.sin(elapsed*7)*.012:Math.sin(elapsed*1.5)*.004;hands.rotation.z=walking?Math.sin(elapsed*3.5)*.015:0
 if(firstPerson!==(immersion>.85)){firstPerson=immersion>.85;hint.innerHTML=spacewalk?flightHint:firstPerson?eyeHint:orbitHint}
 starfield.position.copy(camera.position);earth.rotation.y+=dt*.008;(marker.material as THREE.MeshBasicMaterial).opacity*=.98
-const screen=player.g.position.clone().add(new THREE.Vector3(0,2.8,0)).project(camera);label.style.left=`${(screen.x*.5+.5)*innerWidth}px`;label.style.top=`${(-screen.y*.5+.5)*innerHeight}px`;label.style.opacity=screen.z<1&&!lookingEarth&&immersion<.2?'1':'0';companions.update(elapsed,dt,player.g.position);updateSparkles(elapsed,dt,player.g.position,companions.objects[1].position);updateMap(elapsed);renderer.render(scene,camera)}
+const screen=projectedLabel.copy(player.g.position).addScaledVector(worldUp,2.8).project(camera);label.style.left=`${(screen.x*.5+.5)*innerWidth}px`;label.style.top=`${(-screen.y*.5+.5)*innerHeight}px`;label.style.opacity=screen.z<1&&!lookingEarth&&immersion<.2?'1':'0';companions.update(elapsed,dt,player.g.position);updateSparkles(elapsed,dt,player.g.position,companions.objects[1].position);updateMap(elapsed);renderer.render(scene,camera)}
 focus.copy(player.g.position);animate();window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)})

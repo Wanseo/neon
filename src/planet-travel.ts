@@ -121,14 +121,14 @@ export function createPlanetTravel(canvas: HTMLCanvasElement, astronaut: THREE.G
       }
       explorer.rotation.x = -.23; explorer.rotation.y = orbitYaw + Math.PI; explorer.position.y += Math.sin(time * 1.5) * dt * .05
       companions.forEach((friend, i) => { friend.position.copy(explorer.position).add(new THREE.Vector3(i ? 3.5 : -3.5, i ? 1 : -.3, -2)); friend.rotation.y = time * .08; friend.position.y += Math.sin(time * 1.7 + i) * .15 })
-      camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix()
+      if(camera.aspect!==innerWidth/innerHeight){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()}
       const focus = explorer.position.clone().add(new THREE.Vector3(0, 1.4, 0))
       camera.position.copy(focus).add(new THREE.Vector3(Math.sin(orbitYaw) * Math.cos(orbitPitch) * zoom, Math.sin(orbitPitch) * zoom, Math.cos(orbitYaw) * Math.cos(orbitPitch) * zoom))
       camera.lookAt(focus.clone().lerp(planet.group.position, flying ? .12 : .04)); starfield.position.copy(camera.position)
       warpMaterial.opacity = flying ? Math.sin(Math.min(travelTime / 4.8, 1) * Math.PI) * .55 : 0
       warp.position.copy(camera.position); warp.quaternion.copy(camera.quaternion)
       if (flying) for (let i = 0; i < 110; i++) { const angle = i * 2.39996, radius = 5 + (i % 13) * 2, z = -10 - ((time * 110 + i * 7) % 180); warpPositions.set([Math.cos(angle) * radius, Math.sin(angle) * radius, z, Math.cos(angle) * radius, Math.sin(angle) * radius, z - 10 - (i % 7)], i * 6) }
-      warpGeometry.attributes.position.needsUpdate = true;updateSparkles(time,dt,explorer.position,companions[1].position); renderer.render(scene, camera)
+      if(flying)warpGeometry.attributes.position.needsUpdate = true;updateSparkles(time,dt,explorer.position,companions[1].position); renderer.render(scene, camera)
     }
   }
 }
