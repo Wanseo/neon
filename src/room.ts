@@ -167,31 +167,33 @@ type Participant={id:string;name:string}
 const guests = new Map<string, THREE.Group>()
 const guestLabels=new Map<string,HTMLElement>()
 document.querySelector('.seat-label')!.remove()
-function namePalette(name:string){let hash=0;for(const char of name)hash=(Math.imul(hash,31)+char.codePointAt(0)!)>>>0;return{outfit:['#7c8b70','#ba8a7b','#8297a4','#b29a65','#9d8da9','#a29383'][hash%6],hair:['#302b28','#342d29','#272624'][hash%3]}}
-const skin = new THREE.MeshStandardMaterial({ color: '#e9bd99', roughness: .83 })
-const ink = new THREE.MeshStandardMaterial({ color: '#493e36', roughness: .8 })
+function namePalette(){return{outfit:'#e4a0bb',hair:'#693e2e'}}
+const skin = new THREE.MeshStandardMaterial({ color: '#f7c58d', roughness: .83 })
+const pinkShoes = new THREE.MeshStandardMaterial({color:'#d789a6',roughness:.8})
 function setGuests(people: Participant[]) {
   const ids=people.map(person=>person.id)
   people.forEach(({id,name}, index) => {
     let guest = guests.get(id)
     if (!guest) {
       guest = new THREE.Group(); guests.set(id, guest); scene.add(guest)
-      const colors=namePalette(name),outfit=new THREE.MeshStandardMaterial({color:colors.outfit,roughness:.84}),guestHair=new THREE.MeshStandardMaterial({color:colors.hair,roughness:.48})
+      const colors=namePalette(),outfit=new THREE.MeshStandardMaterial({color:colors.outfit,roughness:.84}),guestHair=new THREE.MeshStandardMaterial({color:colors.hair,roughness:.48})
       guest.userData.outfit=outfit;guest.userData.hair=guestHair
       const label=document.createElement('div');label.className='seat-label';const badge=document.createElement('span'),text=document.createElement('b');label.append(badge,text);document.querySelector('#app')!.append(label);guestLabels.set(id,label)
       mesh(guest, new THREE.CylinderGeometry(.46, .46, .12, 32), oak, 0, .75, 0)
       box(guest, .87, .65, .12, oak, 0, 1.15, -.38)
       box(guest, .73, .42, .045, sage, 0, 1.17, -.3)
       for (const x of [-.3, .3]) for (const z of [-.28, .28]) box(guest, .065, .75, .065, oak, x, .36, z)
-      const body = mesh(guest, new THREE.CapsuleGeometry(.27, .35, 6, 16), porcelain, 0, 1.21, 0); body.scale.z = .8
-      const vest = sphere(guest, .29, outfit, 0, 1.17, .08); vest.scale.set(1, 1.35, .6)
+      mesh(guest,new THREE.CylinderGeometry(.22,.34,.62,32),outfit,0,1.2,0)
+      mesh(guest,new THREE.CylinderGeometry(.33,.37,.10,32),porcelain,0,.86,0)
+      for(let i=0;i<14;i++){const a=i/14*Math.PI*2;const scallop=sphere(guest,.047,porcelain,Math.cos(a)*.331,.842,Math.sin(a)*.331);scallop.scale.y=.65}
+      for(let i=0;i<12;i++){const a=i/12*Math.PI*2;sphere(guest,.035,porcelain,Math.cos(a)*.14,1.525,Math.sin(a)*.14)}
       guest.userData.updateFace=createRoomAvatarHead(guest,guestHair)
-      for (const x of [-.35, .35]) { const arm = mesh(guest, new THREE.CapsuleGeometry(.095, .32, 4, 10), porcelain, x, 1.3, .19); arm.rotation.x = -.8; sphere(guest, .09, skin, x, 1.15, .4) }
+      for(const x of [-.33,.33]){const arm=mesh(guest,new THREE.CapsuleGeometry(.095,.30,4,10),outfit,x,1.3,.19);arm.rotation.x=-.8;const cuff=mesh(guest,new THREE.CylinderGeometry(.103,.103,.07,12),porcelain,x,1.18,.36);cuff.rotation.x=-.8;sphere(guest,.105,skin,x,1.13,.41)}
       mesh(guest,new THREE.CylinderGeometry(.24,.24,.025,32),porcelain,0,1.5,.88)
       mesh(guest,new THREE.CylinderGeometry(.085,.075,.18,20),porcelain,.37,1.59,.82)
-      for (const x of [-.16, .16]) { box(guest, .18, .43, .19, sage, x, .68, .19); box(guest, .19, .15, .31, ink, x, .43, .29) }
+      for (const x of [-.16, .16]) { const stocking=mesh(guest,new THREE.CapsuleGeometry(.073,.29,4,10),porcelain,x,.66,.22);stocking.scale.z=.9;const shoe=sphere(guest,.12,pinkShoes,x,.43,.3);shoe.scale.set(.8,.6,1.35) }
     }
-    const colors=namePalette(name);(guest.userData.outfit as THREE.MeshStandardMaterial).color.set(colors.outfit);(guest.userData.hair as THREE.MeshStandardMaterial).color.set(colors.hair);guest.userData.name=name
+    const colors=namePalette();(guest.userData.outfit as THREE.MeshStandardMaterial).color.set(colors.outfit);(guest.userData.hair as THREE.MeshStandardMaterial).color.set(colors.hair);guest.userData.name=name
     const label=guestLabels.get(id)!;label.querySelector('span')!.textContent=index===0?'나':name.slice(0,1);label.querySelector('b')!.textContent=name
     const angle = index / Math.max(ids.length, 1) * Math.PI * 2
     guest.position.set(Math.sin(angle) * 2.25, 0, -Math.cos(angle) * 2.25); guest.rotation.y = -angle
@@ -254,7 +256,7 @@ canvas.addEventListener('pointermove', e => { if (!dragging) return;if(Math.hypo
 canvas.addEventListener('pointerup',e=>{if(!dragging)return;dragging=false;if(wasDragged)return;const rect=canvas.getBoundingClientRect();lampPointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);lampRay.setFromCamera(lampPointer,camera);if(lampRay.intersectObject(vase,true).length)toggleTableLamp()})
 canvas.addEventListener('pointercancel',()=>{dragging=false;wasDragged=true})
 canvas.addEventListener('wheel', e => { e.preventDefault(); distance = THREE.MathUtils.clamp(distance + e.deltaY * .008, 7, 18) }, { passive: false })
-const focus = new THREE.Vector3(), projected = new THREE.Vector3(),labelOffset=new THREE.Vector3(0,2.65,0)
+const focus = new THREE.Vector3(), projected = new THREE.Vector3(),labelOffset=new THREE.Vector3(0,3.0,0)
 function animate(now: number) {
   requestAnimationFrame(animate); daylight.update(now); const time = now / 1000
   const mobile = innerWidth < 650, screenOffset = mobile ? 0 : -1.25

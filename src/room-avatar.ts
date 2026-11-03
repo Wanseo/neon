@@ -1,85 +1,67 @@
 import * as THREE from 'three'
+import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 
-// A sculpted, expressive face built as native 3D geometry, so every camera angle works.
+// Soft toy-like proportions, a straight bob, and a large pink ribbon.
 export function createRoomAvatarHead(parent: THREE.Group, hair: THREE.MeshStandardMaterial) {
-  const head = new THREE.Group(); head.position.set(0, 2.04, 0); parent.add(head)
-  const skin = new THREE.MeshStandardMaterial({ color: '#efd0b2', roughness: .63 })
-  const white = new THREE.MeshStandardMaterial({ color: '#fffaf0', roughness: .3 })
-  const iris = new THREE.MeshStandardMaterial({ color: '#715432', roughness: .22 })
-  const dark = new THREE.MeshStandardMaterial({ color: '#211e1b', roughness: .38 })
-  const lips = new THREE.MeshStandardMaterial({ color: '#bd706c', roughness: .55 })
-  const blush = new THREE.MeshStandardMaterial({ color: '#e9ae9a', roughness: .8 })
-  const highlight = new THREE.MeshBasicMaterial({ color: '#fffdf5' })
+  const head = new THREE.Group(); head.position.set(0, 2.01, 0); parent.add(head)
+  const skin = new THREE.MeshStandardMaterial({ color: '#f7c58d', roughness: .85 })
+  const white = new THREE.MeshStandardMaterial({ color: '#fff5dc', roughness: .8 })
+  const eyesMaterial = new THREE.MeshStandardMaterial({ color: '#49473e', roughness: .75 })
+  const eyeShine = new THREE.MeshStandardMaterial({ color: '#6c6a5d', roughness: .75 })
+  const noseMaterial = new THREE.MeshStandardMaterial({ color: '#d57c42', roughness: .85 })
+  const smileMaterial = new THREE.MeshStandardMaterial({ color: '#7a4c32', roughness: .9 })
+  const cheekMaterial = new THREE.MeshStandardMaterial({ color: '#f0ac80', roughness: 1 })
+  const ribbonMaterial = new THREE.MeshStandardMaterial({ color: '#ed6aa8', roughness: .65 })
   function ellipsoid(group: THREE.Object3D, material: THREE.Material, position: number[], scale: number[]) {
-    const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 20), material)
-    mesh.position.set(position[0], position[1], position[2]); mesh.scale.set(scale[0], scale[1], scale[2]); mesh.castShadow = true; group.add(mesh); return mesh
+    const object = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), material)
+    object.position.set(position[0], position[1], position[2]); object.scale.set(scale[0], scale[1], scale[2]); group.add(object); return object
   }
-  function curve(group: THREE.Object3D, points: number[][], radius: number, material: THREE.Material) {
-    const path = new THREE.CatmullRomCurve3(points.map(p => new THREE.Vector3(p[0], p[1], p[2])))
-    const mesh = new THREE.Mesh(new THREE.TubeGeometry(path, 14, radius, 6, false), material); mesh.castShadow = true; group.add(mesh); return mesh
+  function roundedBox(group: THREE.Object3D, width: number, height: number, depth: number, radius: number, material: THREE.Material, x: number, y: number, z: number) {
+    const geometry = new THREE.BoxGeometry(width, height, depth, 8, 8, 8), positions = geometry.attributes.position
+    const half = new THREE.Vector3(width / 2 - radius, height / 2 - radius, depth / 2 - radius), point = new THREE.Vector3(), center = new THREE.Vector3()
+    for (let i = 0; i < positions.count; i++) {
+      point.fromBufferAttribute(positions, i); center.copy(point).clamp(half.clone().negate(), half)
+      point.sub(center).normalize().multiplyScalar(radius).add(center); positions.setXYZ(i, point.x, point.y, point.z)
+    }
+    geometry.deleteAttribute('normal');geometry.deleteAttribute('uv');const smoothGeometry=mergeVertices(geometry,1e-4);smoothGeometry.computeVertexNormals();geometry.dispose();const object = new THREE.Mesh(smoothGeometry, material); object.position.set(x, y, z); object.castShadow = true; group.add(object); return object
   }
-  const face=ellipsoid(head,skin,[0,0,0],[.345,.405,.315]);face.castShadow=true
-  const facePositions=face.geometry.attributes.position
-  for(let i=0;i<facePositions.count;i++){const y=facePositions.getY(i);if(y<-.1)facePositions.setX(i,facePositions.getX(i)*(1-.12*Math.abs(y)))}
-  face.geometry.computeVertexNormals()
-  // A soft jaw and small ears keep the silhouette round, with a defined chin.
+  const backHair=ellipsoid(head,hair,[0,.015,-.145],[.465,.54,.37]);backHair.castShadow=true
+  roundedBox(head, .81, .77, .61, .19, skin, 0, -.025, .015)
+  roundedBox(head, .78, .29, .17, .055, hair, 0, .254, .276)
   for (const side of [-1, 1]) {
-    ellipsoid(head, skin, [side * .335, -.015, -.005], [.055, .095, .055])
-    ellipsoid(head, blush, [side * .354, -.012, .028], [.025, .055, .018])
+    const sideHair=ellipsoid(head,hair,[side*.398,-.045,.025],[.092,.45,.18]);sideHair.rotation.z=-side*.035;sideHair.castShadow=true
+    ellipsoid(head, skin, [side * .405, -.07, .015], [.045, .085, .055])
+    ellipsoid(head, cheekMaterial, [side * .255, -.15, .322], [.085, .027, .006])
   }
-  ellipsoid(head, skin, [0, -.005, .302], [.045, .10, .046])
-  ellipsoid(head, skin, [0, -.055, .357], [.056, .049, .054])
   const eyes: THREE.Group[] = []
   for (const side of [-1, 1]) {
-    const eye = new THREE.Group(); eye.position.set(side * .137, .049, .287); head.add(eye); eyes.push(eye)
-    ellipsoid(eye, white, [0, 0, 0], [.105, .074, .058])
-    ellipsoid(eye, iris, [-side * .006, -.002, .05], [.051, .061, .022])
-    ellipsoid(eye, dark, [-side * .006, 0, .069], [.031, .043, .009])
-    ellipsoid(eye, highlight, [-.018, .025, .079], [.014, .017, .005])
-    ellipsoid(eye, highlight, [.013, -.021, .079], [.005, .006, .003])
-    curve(eye, [[-.096, .013, .013], [-.064, .062, .039], [0, .074, .04], [.066, .053, .035], [.098, .008, .013]], .006, dark)
-    for (let i = 0; i < 3; i++) {
-      const x = side * (.062 + i * .012)
-      curve(eye, [[x, .048 - i * .008, .038], [x + side * .023, .063 - i * .006, .035]], .0035, dark)
+    const eye = new THREE.Group(); eye.position.set(side * .175, .015, .325); head.add(eye); eyes.push(eye)
+    ellipsoid(eye, white, [0, 0, 0], [.096, .122, .014])
+    ellipsoid(eye, eyesMaterial, [side * .014, 0, .015], [.07, .105, .009])
+    ellipsoid(eye, eyeShine, [side * .019, .019, .023], [.017, .055, .003])
+    const lashPath = new THREE.CatmullRomCurve3([new THREE.Vector3(-.09, .025, .001), new THREE.Vector3(-.071, .105, .003), new THREE.Vector3(0, .126, .003), new THREE.Vector3(.072, .09, .002)])
+    eye.add(new THREE.Mesh(new THREE.TubeGeometry(lashPath, 14, .005, 5, false), smileMaterial))
+    for (let i = 0; i < 2; i++) {
+      const lash = new THREE.Mesh(new THREE.CapsuleGeometry(.004, .024, 3, 5), smileMaterial)
+      lash.position.set(side * (.078 + i * .009), .08 - i * .024, 0); lash.rotation.z = side * .9; eye.add(lash)
     }
-    const x = side * .137
-    curve(head, [[x - .087, .175, .277], [x - .035, .195, .297], [x + .025, .193, .297], [x + .078, .176, .275]], .012, hair)
   }
-  const mouth = new THREE.Group(); mouth.position.set(0, -.167, .304); head.add(mouth)
-  ellipsoid(mouth, lips, [-.026, .005, .016], [.045, .016, .016])
-  ellipsoid(mouth, lips, [.026, .005, .016], [.045, .016, .016])
-  ellipsoid(mouth, lips, [0, -.014, .017], [.064, .018, .019])
-  curve(mouth, [[-.061, -.002, .029], [0, -.001, .033], [.061, -.002, .029]], .0025, dark)
-
-  // The bob is open at the face, with a swept side part and separate tapered locks.
-  const positions: number[] = [], indices: number[] = [], around = 56, rows = 22
-  for (let y = 0; y <= rows; y++) for (let x = 0; x <= around; x++) {
-    const phi = x / around * Math.PI * 2 - Math.PI
-    const front = Math.max(0, Math.cos(phi)), side = Math.abs(Math.sin(phi))
-    const limit = 2.43 - front * 1.47 + side * front * .25
-    const theta = y / rows * limit
-    const volume = 1 + .025 * Math.sin(phi * 5 + theta * 2)
-    positions.push(Math.sin(phi) * Math.sin(theta) * .405 * volume, .065 + Math.cos(theta) * .455, -.025 + Math.cos(phi) * Math.sin(theta) * .35 * volume)
-    if (y < rows && x < around) { const a = y * (around + 1) + x, b = a + around + 1; indices.push(a, b, a + 1, b, b + 1, a + 1) }
-  }
-  const capGeometry = new THREE.BufferGeometry(); capGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3)); capGeometry.setIndex(indices); capGeometry.computeVertexNormals()
-  const cap = new THREE.Mesh(capGeometry, hair); cap.castShadow = true; head.add(cap)
+  ellipsoid(head, noseMaterial, [0, -.088, .344], [.055, .027, .023])
+  const smilePath = new THREE.CatmullRomCurve3([new THREE.Vector3(-.097, -.198, .327), new THREE.Vector3(-.035, -.211, .334), new THREE.Vector3(.035, -.211, .334), new THREE.Vector3(.097, -.185, .327)])
+  const smile = new THREE.Mesh(new THREE.TubeGeometry(smilePath, 18, .009, 6, false), smileMaterial); head.add(smile)
+  // Rounded triangular fabric loops create the silhouette of the reference bow.
+  const bow = new THREE.Group(); bow.position.set(0, .58, -.015); head.add(bow)
   for (const side of [-1, 1]) {
-    const lock = ellipsoid(head, hair, [side * .325, -.12, -.07], [.135, .34, .22]); lock.rotation.z = side * -.12
-    for (let i = 0; i < 3; i++) {
-      const strand = ellipsoid(head, hair, [side * (.24 + i * .045), -.34 - i * .013, -.04 + i * .025], [.075, .115, .125]); strand.rotation.z = side * (.2 + i * .16)
-    }
+    const shape = new THREE.Shape(); shape.moveTo(side * .015, -.02); shape.bezierCurveTo(side * .10, .12, side * .29, .27, side * .33, .13); shape.bezierCurveTo(side * .36, .02, side * .24, -.14, side * .07, -.09); shape.quadraticCurveTo(side * .025, -.08, side * .015, -.02)
+    const geometry = new THREE.ExtrudeGeometry(shape, { depth: .07, bevelEnabled: true, bevelThickness: .035, bevelSize: .035, bevelSegments: 3, steps: 1, curveSegments: 14 })
+    const loop = new THREE.Mesh(geometry, ribbonMaterial); loop.castShadow = true; bow.add(loop)
   }
-  curve(head, [[-.08, .49, -.005], [-.20, .41, .15], [-.30, .23, .19], [-.365, -.02, .14], [-.35, -.28, .07], [-.27, -.4, .035]], .052, hair)
-  curve(head, [[-.07, .49, 0], [.14, .44, .11], [.29, .29, .20], [.36, .075, .16], [.36, -.19, .08], [.32, -.4, .005]], .068, hair)
-  // A narrow seam suggests the part without a painted texture.
-  curve(head, [[-.071, .492, .005], [-.085, .453, .10], [-.105, .383, .20]], .004, skin)
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(.09, .105, .2, 16), skin); neck.position.set(0, 1.64, 0); parent.add(neck)
+  ellipsoid(bow, ribbonMaterial, [0, -.015, .065], [.085, .085, .07])
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(.095, .10, .17, 16), skin); neck.position.set(0, 1.61, 0); parent.add(neck)
   return (time: number, blowing: boolean) => {
     const blink = Math.sin(time * .83) > .996
-    for (const eye of eyes) eye.scale.y = blink ? .12 : blowing ? .8 : 1
-    mouth.scale.set(blowing ? .6 : 1, blowing ? 1.4 : 1, 1)
-    head.rotation.z = Math.sin(time * .55) * .018
-    head.rotation.x = blowing ? .09 : -.025
+    for (const eye of eyes) eye.scale.y = blink ? .1 : 1
+    smile.scale.set(blowing ? .55 : 1, blowing ? 1.1 : 1, 1)
+    head.rotation.z = Math.sin(time * .55) * .018; head.rotation.x = blowing ? .10 : -.02
   }
 }
