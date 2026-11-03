@@ -33,7 +33,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 <div class="hint">바닥을 클릭해 이동 <em>·</em> 드래그로 둘러보기 <em>·</em> 휠로 확대 / 축소</div>
 <nav class="actions glass" aria-label="달 탐험 행동"><button id="jump">${icon('jump')}<span>달뜀하기</span></button><button id="flag">${icon('flag')}<span>깃발 꽂기</span></button><button id="earth">${icon('view')}<span>지구 바라보기</span></button><span class="action-divider"></span><button id="home">${icon('home')}<span>기지로</span></button></nav>
 <footer><span><i></i> ALL IS QUIET UP HERE</span><span>지구로부터 <b>384,400</b> km</span></footer>
-<section class="flight-hud glass" hidden aria-label="우주 유영 상태"><span class="flight-mode">✧ 우주 유영</span><strong><span id="altitude">0</span><small>m · 달 표면 위</small></strong><p>WASD / 방향키 · 이동<br>SPACE · 상승 &nbsp; SHIFT · 하강</p><button id="descend">↓ 하강</button><span class="flight-return">기지로 버튼을 누르면 자동 착륙</span></section>
+<section class="flight-hud glass" hidden aria-label="우주 유영 상태"><span class="flight-mode">✧ 우주 유영</span><strong><span id="altitude">0</span><small>m · 달 표면 위</small></strong><p>WASD / 방향키 · 이동<br>SPACE · 상승 &nbsp; SHIFT · 하강</p><button id="descend">↓ 내려오기</button><span class="flight-return">한 번 누르면 현재 위치로 자동 착륙</span></section>
 <div id="toast" role="status"></div>
 <dialog id="settings-panel"><form method="dialog"><button class="close" aria-label="닫기">×</button><span class="eyebrow">YOUR LITTLE UNIVERSE</span><h2>나만의 달</h2><label>별의 밝기 <input id="stars" type="range" min="0.2" max="1" step="0.1" value="0.7"></label><p>이곳은 혼자 쉬어가는 작은 우주예요.<br>방향키 또는 WASD로도 걸을 수 있어요.</p><button class="done">탐사 계속하기 ↗</button></form></dialog>`
 
@@ -95,7 +95,7 @@ for(const x of [-7,7]){mesh(new THREE.CylinderGeometry(.08,.08,2,8),white,base,x
 const dish=mesh(new THREE.SphereGeometry(1.2,20,12,0,Math.PI*2,0,Math.PI/2),white,base,0,7,0);dish.rotation.x=.6;mesh(new THREE.CylinderGeometry(.08,.08,2,8),dark,base,0,5.8,0)
 function plantFlag(x:number,z:number){const flag=new THREE.Group();flag.position.set(x,height(x,z),z);mesh(new THREE.CylinderGeometry(.035,.035,3.3,8),white,flag,0,1.65,0);mesh(new THREE.BoxGeometry(1.15,.72,.025),new THREE.MeshStandardMaterial({color:0xd7aa64,roughness:.9}),flag,.58,2.85,0);mesh(new THREE.TorusGeometry(.18,.025,8,24),white,flag,.58,2.85,.025);scene.add(flag)}plantFlag(-5,-5)
 const marker=new THREE.Mesh(new THREE.RingGeometry(.35,.43,40),new THREE.MeshBasicMaterial({color:0xe9c790,transparent:true,opacity:0}));marker.rotation.x=-Math.PI/2;scene.add(marker)
-let yaw=0,pitch=.18,distance=15;const focus=new THREE.Vector3();const target=player.g.position.clone();let jumping=false;let verticalSpeed=0,jumpCount=0,lastJump=-10,spacewalk=false,returning=false,descendHeld=false;const flightVelocity=new THREE.Vector3();let lookingEarth=false
+let yaw=0,pitch=.18,distance=15;const focus=new THREE.Vector3();const target=player.g.position.clone();let jumping=false;let verticalSpeed=0,jumpCount=0,lastJump=-10,spacewalk=false,returning=false;const flightVelocity=new THREE.Vector3();const landingTarget=new THREE.Vector3(12,height(12,-16),-16);let lookingEarth=false
 const ray=new THREE.Raycaster();const pointer=new THREE.Vector2();let downX=0,downY=0,lastX=0,lastY=0,dragging=false,moved=false
 const touches=new Map<number,THREE.Vector2>();let pinchDistance=0
 function changeZoom(amount:number){distance=THREE.MathUtils.clamp(distance+amount,.65,38);lookingEarth=false}
@@ -136,7 +136,7 @@ function setFlight(enabled:boolean){
  hint.innerHTML=enabled?flightHint:firstPerson?eyeHint:orbitHint
 }
 function jump(){
- if(returning){toast('달 기지로 착륙하는 중이에요.');return}
+ if(returning){toast('달 표면으로 착륙하는 중이에요.');return}
  if(spacewalk){flightVelocity.y=Math.min(flightVelocity.y+24,72);return}
  jumpCount=elapsed-lastJump<1.8?jumpCount+1:1;lastJump=elapsed
  if(jumpCount>=3){jumping=false;verticalSpeed=0;flightVelocity.set(0,24,0);target.copy(player.g.position);setFlight(true);toast('달을 떠났어요! WASD로 유영 · SPACE 상승 · SHIFT 하강');return}
@@ -144,12 +144,14 @@ function jump(){
  toast(jumpCount===2?'한 번 더 점프하면 우주 유영을 시작해요!':'점프를 연속 3번 누르면 우주로 떠올라요.')
 }
 const descendButton=document.querySelector<HTMLButtonElement>('#descend')!
-descendButton.addEventListener('pointerdown',e=>{descendHeld=true;descendButton.setPointerCapture(e.pointerId)})
-for(const event of ['pointerup','pointercancel','lostpointercapture'])descendButton.addEventListener(event,()=>descendHeld=false)
-window.addEventListener('blur',()=>descendHeld=false)
+descendButton.addEventListener('click',()=>{
+ if(!spacewalk||returning)return
+ landingTarget.set(player.g.position.x,height(player.g.position.x,player.g.position.z),player.g.position.z)
+ returning=true;lookingEarth=false;toast('지금 있는 자리로 천천히 내려갑니다.')
+})
 document.querySelector('#jump')!.addEventListener('click',jump)
 let flags=0;document.querySelector('#flag')!.addEventListener('click',()=>{if(flags>=12){toast('오늘의 탐사 흔적을 충분히 남겼어요.');return}plantFlag(player.g.position.x+1.3,player.g.position.z);flags++;toast('작은 지구인이 다녀간 자리 ✧')})
-document.querySelector('#home')!.addEventListener('click',()=>{target.set(12,0,-16);lookingEarth=false;if(spacewalk){returning=true;toast('달 기지로 자동 귀환해요. 천천히 착륙합니다.')}else toast('고요의 기지로 돌아가는 중')})
+document.querySelector('#home')!.addEventListener('click',()=>{target.set(12,0,-16);lookingEarth=false;if(spacewalk){landingTarget.set(12,height(12,-16),-16);returning=true;toast('달 기지로 자동 귀환해요. 천천히 착륙합니다.')}else toast('고요의 기지로 돌아가는 중')})
 document.querySelector('#earth')!.addEventListener('click',()=>{lookingEarth=!lookingEarth;distance=Math.max(distance,8);yaw=.34;pitch=.12;toast(lookingEarth?'저 푸른 점에 우리의 모든 일상이 있어요.':'다시, 나의 작은 탐사')})
 document.querySelector('#settings')!.addEventListener('click',()=>document.querySelector<HTMLDialogElement>('#settings-panel')!.showModal())
 document.querySelector('#stars')!.addEventListener('input',e=>starMat.opacity=Number((e.target as HTMLInputElement).value))
@@ -225,9 +227,9 @@ if(!returning){if(keys.has('w')||keys.has('arrowup'))dz--;if(keys.has('s')||keys
 const input=new THREE.Vector3(dx,0,dz);if(input.lengthSq()>1)input.normalize();input.applyAxisAngle(new THREE.Vector3(0,1,0),yaw)
 let walking=false
 if(spacewalk){
- if(returning){const destination=new THREE.Vector3(12,height(12,-16),-16);flightVelocity.x=THREE.MathUtils.clamp((destination.x-player.g.position.x)*1.8,-48,48);flightVelocity.z=THREE.MathUtils.clamp((destination.z-player.g.position.z)*1.8,-48,48);flightVelocity.y=-Math.min(48,Math.max(1,(player.g.position.y-destination.y)*.7))}
+ if(returning){const destination=landingTarget;flightVelocity.x=THREE.MathUtils.clamp((destination.x-player.g.position.x)*1.8,-48,48);flightVelocity.z=THREE.MathUtils.clamp((destination.z-player.g.position.z)*1.8,-48,48);flightVelocity.y=-Math.min(48,Math.max(1,(player.g.position.y-destination.y)*.7))}
  else{
-  const thrust=(keys.has(' ')?1:0)-(keys.has('shift')||descendHeld?1:0)
+  const thrust=(keys.has(' ')?1:0)-(keys.has('shift')?1:0)
   flightVelocity.x=THREE.MathUtils.damp(flightVelocity.x,input.x*48,6,dt);flightVelocity.z=THREE.MathUtils.damp(flightVelocity.z,input.z*48,6,dt)
   flightVelocity.y=thrust?THREE.MathUtils.damp(flightVelocity.y,thrust*60,5,dt):flightVelocity.y*Math.exp(-.35*dt)
  }

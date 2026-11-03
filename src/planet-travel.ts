@@ -18,7 +18,7 @@ export function createPlanetTravel(canvas: HTMLCanvasElement, astronaut: THREE.G
   document.querySelector('#app')!.insertAdjacentHTML('beforeend', `
     <nav class="planet-nav glass" aria-label="태양계 여행 목적지"><div class="planet-nav-heading">태양계 여행 <span>가고 싶은 별을 눌러보세요</span></div><div class="planet-list">${destinations.map((p, i) => `<button data-planet="${i}" aria-label="${p.name}으로 날아가기" aria-pressed="false"><i style="--planet-color:${p.color}" class="planet-icon ${p.ring ? 'ringed' : ''}"></i><span>${p.name}</span></button>`).join('')}</div></nav>
     <section class="travel-info" hidden aria-live="polite"><span class="eyebrow" id="travel-english"></span><h1 id="travel-name"></h1><p id="travel-status"></p><div class="travel-progress"><i></i></div><span class="travel-note">상상 속 태양계 · 거리와 크기를 줄인 여행</span></section>
-    <div class="travel-controls glass" hidden><span>WASD 이동 · SPACE 상승 · SHIFT 하강<br>드래그로 둘러보기 · 휠로 확대 / 축소</span><button id="return-moon">☾ 달로 돌아가기</button></div>`)
+    <div class="travel-controls glass" hidden><span>WASD 이동 · SPACE 상승 · SHIFT 하강<br>드래그로 둘러보기 · 휠로 확대 / 축소</span><button id="planet-descend">↓ 내려오기</button><button id="return-moon">☾ 달로 돌아가기</button></div>`)
   const scene = new THREE.Scene(); scene.background = new THREE.Color('#02050c')
   const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, .1, 50000)
   scene.add(new THREE.HemisphereLight(0xd3e7ff, 0x1c1724, 2))
@@ -66,9 +66,13 @@ export function createPlanetTravel(canvas: HTMLCanvasElement, astronaut: THREE.G
   const roomName=document.querySelector('.room > span:nth-child(2)')!, originalRoom=roomName.innerHTML
   const info = document.querySelector<HTMLElement>('.travel-info')!, controls = document.querySelector<HTMLElement>('.travel-controls')!
   const name = document.querySelector('#travel-name')!, english = document.querySelector('#travel-english')!, status = document.querySelector('#travel-status')!, progress = document.querySelector<HTMLElement>('.travel-progress i')!
+  let descending=false,descentStarted=0
+  const descentStart=new THREE.Vector3(),descentFinish=new THREE.Vector3()
+  const descendButton=document.querySelector<HTMLButtonElement>('#planet-descend')!
   let active = false, flying = false, selected = 0, travelTime = 0, travelStarted = 0, orbitYaw = 0, orbitPitch = .16, zoom = 16, down = false, lastX = 0, lastY = 0
   const start = new THREE.Vector3(), finish = new THREE.Vector3(), velocity = new THREE.Vector3()
   function select(index: number) {
+    descending=false;descendButton.disabled=true;descendButton.textContent='↓ 내려오기'
     const wasActive = active; active = true; flying = true; selected = index; travelTime = 0; travelStarted=performance.now(); velocity.set(0, 0, 0)
     if (!wasActive) explorer.position.set(0, 0, 0)
     start.copy(explorer.position); const planet = planets[index]
@@ -80,7 +84,15 @@ export function createPlanetTravel(canvas: HTMLCanvasElement, astronaut: THREE.G
     orbitYaw = 0; orbitPitch = .16; zoom = 16
   }
   document.querySelectorAll<HTMLButtonElement>('[data-planet]').forEach(button => button.addEventListener('click', () => select(Number(button.dataset.planet))))
-  document.querySelector('#return-moon')!.addEventListener('click', () => { active = false; flying = false; info.hidden = controls.hidden = true; document.body.classList.remove('planet-travelling');roomName.innerHTML=originalRoom; document.querySelectorAll('[data-planet]').forEach(button => button.setAttribute('aria-pressed', 'false')); onReturn() })
+  descendButton.addEventListener('click',()=>{
+    if(!active||flying||descending)return
+    const planet=planets[selected],radial=explorer.position.clone().sub(planet.group.position)
+    if(radial.length()<=planet.destination.radius+13){status.textContent='이미 행성 표면 가까이에 있어요. 키보드로 자유롭게 둘러보세요.';return}
+    descending=true;descentStarted=performance.now();descentStart.copy(explorer.position)
+    descentFinish.copy(planet.group.position).add(radial.normalize().multiplyScalar(planet.destination.radius+12))
+    velocity.set(0,0,0);descendButton.disabled=true;descendButton.textContent='내려오는 중…';status.textContent='행성 가까이로 천천히 내려가고 있어요.'
+  })
+  document.querySelector('#return-moon')!.addEventListener('click', () => { active = false; flying = false; descending=false; info.hidden = controls.hidden = true; document.body.classList.remove('planet-travelling');roomName.innerHTML=originalRoom; document.querySelectorAll('[data-planet]').forEach(button => button.setAttribute('aria-pressed', 'false')); onReturn() })
   canvas.addEventListener('pointerdown', e => { if (!active) return; down = true; lastX = e.clientX; lastY = e.clientY; canvas.setPointerCapture(e.pointerId) })
   canvas.addEventListener('pointermove', e => { if (!active || !down || flying) return; orbitYaw -= (e.clientX - lastX) * .005; orbitPitch = THREE.MathUtils.clamp(orbitPitch + (e.clientY - lastY) * .003, -1.1, 1.35); lastX = e.clientX; lastY = e.clientY })
   for (const event of ['pointerup', 'pointercancel']) canvas.addEventListener(event, () => down = false)
@@ -93,7 +105,11 @@ export function createPlanetTravel(canvas: HTMLCanvasElement, astronaut: THREE.G
         travelTime = (performance.now()-travelStarted)/1000; const t = Math.min(1, travelTime / 4.8), ease = t * t * (3 - 2 * t)
         explorer.position.lerpVectors(start, finish, ease); explorer.position.y += Math.sin(t * Math.PI) * 180
         progress.style.width = `${Math.round(t * 100)}%`; status.textContent = `별빛 항해 중 · ${Math.round(t * 100)}%`
-        if (t >= 1) { flying = false; name.textContent = `오늘은, ${planet.destination.name}에서.`; status.textContent = '도착했어요. 행성 곁에서 자유롭게 유영해 보세요.';document.querySelector('.live')!.innerHTML='<i></i> 행성 곁에서 유영 중' }
+        if (t >= 1) { flying = false;descendButton.disabled=false; name.textContent = `오늘은, ${planet.destination.name}에서.`; status.textContent = '도착했어요. 행성 곁에서 자유롭게 유영해 보세요.';document.querySelector('.live')!.innerHTML='<i></i> 행성 곁에서 유영 중' }
+      } else if(descending){
+        const t=Math.min(1,(performance.now()-descentStarted)/3200),ease=t*t*(3-2*t)
+        explorer.position.lerpVectors(descentStart,descentFinish,ease)
+        if(t>=1){descending=false;descendButton.disabled=false;descendButton.textContent='↓ 내려오기';status.textContent='표면 가까이 도착했어요. 키보드로 유영하며 둘러보세요.'}
       } else {
         const dx = Number(keys.has('d') || keys.has('arrowright')) - Number(keys.has('a') || keys.has('arrowleft'))
         const dz = Number(keys.has('s') || keys.has('arrowdown')) - Number(keys.has('w') || keys.has('arrowup'))
