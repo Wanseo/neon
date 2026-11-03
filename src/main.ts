@@ -1,6 +1,7 @@
 import './style.css'
 import * as THREE from 'three'
 import { createCompanions } from './companions'
+import { createLunarOverview } from './lunar-overview'
 
 const icons = {
  sound: '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M16 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>',
@@ -15,7 +16,10 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 <canvas id="universe" aria-label="직접 탐험할 수 있는 3D 달 표면"></canvas>
 <header><div class="room glass"><span class="room-symbol">☾</span><span>고요의 바다 <small>01</small></span><span class="divider"></span><span class="live"><i></i> 로봇 친구들과 탐사 중</span></div><div class="tools glass"><span class="orbit-symbol">✧</span><button id="sound" aria-label="우주 사운드 켜기">${icon('sound')}</button><button id="settings" aria-label="설정">${icon('settings')}</button></div></header>
 <aside class="lunar-map" aria-label="달 표면 미니맵: 내 위치와 지나온 경로, 달 기지">
-  <div class="map-title"><span>고요의 바다</span><small>LUNAR SURFACE</small></div>
+  <div class="map-title"><span>달에서, 지금 여기</span><small>MOON OVERVIEW · 지구에서 보는 달</small></div>
+  <canvas id="moon-overview" aria-label="달 전체 앞면 지도: 동쪽 고요의 바다에 현재 위치 표시"></canvas>
+  <div class="global-location"><span><i class="you-dot"></i>고요의 바다 <small>탐사 지역</small></span><b id="global-coordinates">0.6741° N · 23.4730° E</b></div>
+  <div class="local-map-title">주변 지형 <span>LOCAL EXPLORATION</span></div>
   <div class="map-terrain"><canvas id="minimap" aria-label="실시간 탐사 위치 지도"></canvas><span class="map-north">N ↑</span></div>
   <div class="map-legend"><span><i class="you-dot"></i>나의 위치</span><span><i class="base-dot"></i>달 기지</span></div>
   <div class="map-distance">지구에서 약 384,400 km</div>
@@ -131,6 +135,7 @@ document.querySelector('#settings')!.addEventListener('click',()=>document.query
 document.querySelector('#stars')!.addEventListener('input',e=>starMat.opacity=Number((e.target as HTMLInputElement).value))
 let audioContext:AudioContext|undefined;let soundOn=false;document.querySelector('#sound')!.addEventListener('click',async()=>{if(!audioContext){audioContext=new AudioContext();const gain=audioContext.createGain();gain.gain.value=.025;gain.connect(audioContext.destination);for(const f of [110,164.81,220,277.18]){const osc=audioContext.createOscillator();osc.frequency.value=f;osc.type='sine';osc.connect(gain);osc.start()}}soundOn=!soundOn;await (soundOn?audioContext.resume():audioContext.suspend());document.querySelector('#sound')!.classList.toggle('active',soundOn);document.querySelector('#sound')!.setAttribute('aria-label',soundOn?'우주 사운드 끄기':'우주 사운드 켜기');toast(soundOn?'고요한 우주의 소리를 켰어요.':'소리를 껐어요.')})
 // The map uses the same crater positions and height field as the walkable world.
+const updateLunarOverview=createLunarOverview()
 const mapCanvas=document.querySelector<HTMLCanvasElement>('#minimap')!
 mapCanvas.width=mapCanvas.height=440
 const mapContext=mapCanvas.getContext('2d')!
@@ -157,6 +162,7 @@ paintMap()
 function updateMap(time:number){
  if(time-mapLastTime<.12)return;mapLastTime=time
  const p=player.g.position,last=trail[trail.length-1]
+ updateLunarOverview(p.x,p.z,Math.max(0,p.y-height(p.x,p.z)),time)
  if(Math.hypot(p.x-last.x,p.z-last.y)>.6){trail.push(new THREE.Vector2(p.x,p.z));if(trail.length>1400)trail.shift()}
  if(Math.abs(p.x-mapCenterX)>mapSpan*.38||Math.abs(p.z-mapCenterZ)>mapSpan*.38){mapCenterX=p.x;mapCenterZ=p.z;paintMap()}
  mapContext.clearRect(0,0,440,440);mapContext.drawImage(mapBackground,0,0)

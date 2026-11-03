@@ -1,0 +1,6 @@
+Lunar overview texture: NASA/Goddard/Scientific Visualization Studio
+CGI Moon Kit, https://svs.gsfc.nasa.gov/4720/
+Lunar Reconnaissance Orbiter / Lunar Reconnaissance Orbiter Camera (LRO/LROC)
+Original: https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/lroc_color_poles_1k.jpg
+The application projects this equirectangular texture onto an orthographic near-side disk.
+The simulated exploration area is anchored at Tranquility Base; local metres are converted to lunar latitude/longitude for the overview locator.
