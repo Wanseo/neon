@@ -1,5 +1,6 @@
 import './room.css'
 import * as THREE from 'three'
+import { createRoomDaylight } from './room-daylight'
 
 const windIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 8h11c5 0 5-6 1-6-2 0-3 1-3 3M3 12h15c5 0 5 7 1 7-2 0-3-1-3-3M3 16h5c4 0 4 6 0 6"/></svg>'
 document.querySelector('#app')!.innerHTML = `
@@ -18,7 +19,7 @@ renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadow
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.25
 const scene = new THREE.Scene(); scene.background = new THREE.Color('#e8ddcc'); scene.fog = new THREE.Fog('#e8ddcc', 24, 52)
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, .1, 100)
-scene.add(new THREE.HemisphereLight(0xfff2db, 0x8d907c, 2.3))
+const ambient = new THREE.HemisphereLight(0xfff2db, 0x8d907c, 2.3); scene.add(ambient)
 const sun = new THREE.DirectionalLight(0xffd0a0, 3.4); sun.position.set(-5, 8, -1); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 9, bottom: -9 }); sun.shadow.bias = -.0005; sun.shadow.normalBias = .025; scene.add(sun)
 const fill = new THREE.PointLight(0xffe2bc, 10, 14, 2); fill.position.set(2, 5, 1); scene.add(fill)
 const cream = new THREE.MeshStandardMaterial({ color: '#eee6d6', roughness: .88 })
@@ -45,12 +46,9 @@ box(scene, .16, 7, 13, cream, -7.4, 3.4, 1.4)
 box(scene, 15, .19, .12, oak, 0, .13, -4.85)
 box(scene, .12, .19, 13, oak, -7.25, .13, 1.4)
 const skyCanvas = document.createElement('canvas'); skyCanvas.width = skyCanvas.height = 512
-const sky = skyCanvas.getContext('2d')!, gradient = sky.createLinearGradient(0, 0, 0, 512)
-gradient.addColorStop(0, '#c2cfca'); gradient.addColorStop(.55, '#f1d8b2'); gradient.addColorStop(1, '#e7b690'); sky.fillStyle = gradient; sky.fillRect(0, 0, 512, 512)
-sky.fillStyle = '#fff4d4'; sky.beginPath(); sky.arc(355, 206, 37, 0, Math.PI * 2); sky.fill()
-for (let i = 0; i < 3; i++) { sky.fillStyle = ['#afb8a0', '#929f8d', '#7e9380'][i]; sky.beginPath(); sky.moveTo(0, 512); for (let x = 0; x <= 512; x += 4) sky.lineTo(x, 355 + i * 35 + Math.sin(x * .011 + i * 2) * 28); sky.lineTo(512, 512); sky.fill() }
+const daylight = createRoomDaylight(skyCanvas, ambient, sun, fill, scene)
 const arch = new THREE.Shape(); arch.moveTo(-1.7, -2); arch.lineTo(1.7, -2); arch.lineTo(1.7, .35); arch.absarc(0, .35, 1.7, 0, Math.PI, false); arch.lineTo(-1.7, -2)
-const windowMaterial = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(skyCanvas) })
+const windowMaterial = new THREE.MeshBasicMaterial({ map: daylight.texture, toneMapped: false })
 const windowMesh = mesh(scene, new THREE.ShapeGeometry(arch), windowMaterial, -3, 3.2, -4.88)
 const windowPosition = windowMesh.geometry.attributes.position, windowUV = windowMesh.geometry.attributes.uv
 for (let i = 0; i < windowPosition.count; i++) windowUV.setXY(i, (windowPosition.getX(i) + 1.7) / 3.4, (windowPosition.getY(i) + 2) / 4.05)
@@ -173,7 +171,7 @@ for (const event of ['pointerup', 'pointercancel']) canvas.addEventListener(even
 canvas.addEventListener('wheel', e => { e.preventDefault(); distance = THREE.MathUtils.clamp(distance + e.deltaY * .008, 7, 18) }, { passive: false })
 const focus = new THREE.Vector3(), projected = new THREE.Vector3(), guestLabel = document.querySelector<HTMLElement>('.seat-label')!
 function animate(now: number) {
-  requestAnimationFrame(animate); const time = now / 1000
+  requestAnimationFrame(animate); daylight.update(now); const time = now / 1000
   const mobile = innerWidth < 650, screenOffset = mobile ? 0 : -1.25
   focus.set(screenOffset, 1.45, 0)
   camera.position.set(focus.x + Math.sin(yaw) * Math.cos(elevation) * distance, focus.y + Math.sin(elevation) * distance, Math.cos(yaw) * Math.cos(elevation) * distance)
