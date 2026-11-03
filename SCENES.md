@@ -9,7 +9,9 @@ When the user asks to bring the universe back (for example, “우주 불러와�
 
 The space source is `src/space.ts`, with its unchanged stylesheet in `src/space.css`. It was preserved from commit c18be69; only its stylesheet import path changed. Its other modules and assets remain in place. The room uses an independent stylesheet; styles do not leak between scenes.
 
-The dining room opens an entry form for names (up to 8, comma/newline separated) and candle count (1–30). `setGuests` in `src/room.ts` creates/removes one named character, chair and place setting per manually entered participant. The first participant is the local user. Setup is saved in localStorage and editable via the table setup button. Remote multi-device presence is not yet connected; manually entered names represent the planned gathering, not live remote connections.
+The dining room opens a blank “누구인가요?” entry form for one person's own name on every entry; names are not prefilled or saved. One character, chair and nameplate are created for that person. The room creator also sees the initial candle-count field (1–30) and, after entry, a separate candle settings dialog with no name field. Invitees see only the name entry and inherit the creator's candle count from the invitation URL.
+
+A new root visit creates a room ID in the URL fragment; creator status and candle settings are stored under per-room localStorage keys in that browser. The creator can copy an invitation link. These are local UI roles and portable initial cake settings, not server-enforced authentication or synchronized multi-device presence. Remote multi-user presence and server-authoritative room settings remain unconnected.
 
 ## Confirmed gathering preference
 

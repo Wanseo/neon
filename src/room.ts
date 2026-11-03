@@ -2,16 +2,27 @@ import './room.css'
 import * as THREE from 'three'
 import { createRoomDaylight } from './room-daylight'
 
+// Room ownership is kept in this browser; invitees receive the room ID and cake setting.
+const roomParams=new URLSearchParams(location.hash.slice(1))
+const existingRoomId=roomParams.get('room'),roomId=existingRoomId||crypto.randomUUID()
+let isHost=!existingRoomId,initialCandles=Number(roomParams.get('candles'))||1
+try{if(existingRoomId)isHost=localStorage.getItem(`little-table-owner:${roomId}`)==='true';if(isHost){localStorage.setItem(`little-table-owner:${roomId}`,'true');const saved=Number(localStorage.getItem(`little-table-candles:${roomId}`));if(saved)initialCandles=saved}}catch{/* A newly created room still works without storage. */}
+initialCandles=Number.isInteger(initialCandles)&&initialCandles>=1&&initialCandles<=30?initialCandles:1
+function roomLink(count:number){const url=new URL(location.href);url.hash=new URLSearchParams({room:roomId,candles:String(count)}).toString();return url.href}
+if(isHost)history.replaceState(null,'',roomLink(initialCandles))
+
 const windIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 8h11c5 0 5-6 1-6-2 0-3 1-3 3M3 12h15c5 0 5 7 1 7-2 0-3-1-3-3M3 16h5c4 0 4 6 0 6"/></svg>'
 document.querySelector('#app')!.innerHTML = `
 <canvas id="room-canvas" aria-label="케이크와 촛불이 놓인 따뜻한 3D 식탁"></canvas>
-<header class="room-header"><a class="room-brand" href="./" aria-label="작은 식탁 홈"><span class="brand-mark">✳</span><span>작은 식탁<small>A LITTLE MOMENT TOGETHER</small></span></a><div class="room-header-actions"><button id="edit-table" type="button">식탁 꾸미기 <span>↗</span></button><div class="presence"><i></i><span>함께 앉은 사람</span><b><span id="guest-count">1</span>명</b></div></div></header>
+<header class="room-header"><a class="room-brand" href="./" aria-label="작은 식탁 홈"><span class="brand-mark">✳</span><span>작은 식탁<small>A LITTLE MOMENT TOGETHER</small></span></a><div class="room-header-actions"><button id="copy-room-link" type="button" hidden>초대 링크 <span>↗</span></button><button id="edit-table" type="button" hidden>초 설정 <span>↗</span></button><div class="presence"><i></i><span>함께 앉은 사람</span><b><span id="guest-count">1</span>명</b></div></div></header>
 <section class="room-copy"><span class="room-eyebrow">MAKE A LITTLE WISH</span><h1>오늘의 작은 순간을,<br>축하해요.</h1><p>거창한 이유가 없어도 괜찮아요.<br>당신을 위한 케이크 한 조각을 준비했어요.</p><div class="copy-rule"></div><span class="room-date">A SEAT, A CAKE, AND YOU.</span></section>
 <div class="seat-label"><span>나</span> 오늘의 주인공</div>
 <section class="wish-controls"><div class="wish-caption" id="wish-caption" role="status">잠깐 눈을 감고, 작은 소원을 떠올려봐요.</div><button id="blow-candle">${windIcon}<span>후― 불기</span><small>MAKE A WISH</small></button><button id="relight-candle" hidden>다시 촛불 켜기 <span>↺</span></button></section>
 <footer class="room-footer"><span><i></i> 조금 느리게 머물러도 되는 곳</span><span>드래그로 둘러보기 <em>·</em> 휠로 가까이 보기</span></footer>
 <div class="room-vignette"></div><div id="celebration" aria-hidden="true"></div>
-<dialog id="table-setup" aria-labelledby="setup-title"><form id="table-setup-form"><button class="setup-close" id="close-setup" type="button" aria-label="닫기">×</button><span class="room-eyebrow">A TABLE FOR YOUR PEOPLE</span><h2 id="setup-title">누구와 함께 앉을까요?</h2><p class="setup-intro">이름만큼 자리를 준비하고,<br>케이크에 작은 촛불을 꽂아둘게요.</p><label for="guest-names">함께 앉을 사람<span>한 줄에 한 명씩 · 최대 8명</span></label><textarea id="guest-names" rows="3" maxlength="200" required placeholder="예: 완서&#10;지민"></textarea><p class="setup-help">쉼표로 구분해도 좋아요. 첫 번째 이름이 나의 자리예요.</p><label for="candle-count">케이크의 초<span>1–30개</span></label><div class="candle-input"><button type="button" id="fewer-candles" aria-label="초 하나 줄이기">−</button><input id="candle-count" type="number" inputmode="numeric" min="1" max="30" step="1" value="1" required aria-label="초 개수"><span>개</span><button type="button" id="more-candles" aria-label="초 하나 늘리기">+</button></div><button class="setup-submit" type="submit">우리 식탁 만들기 <span>↗</span></button></form></dialog>`
+<dialog id="table-setup" aria-labelledby="setup-title"><form id="table-setup-form"><span class="room-eyebrow">A SEAT JUST FOR YOU</span><h2 id="setup-title">누구인가요?</h2><p class="setup-intro">이 식탁에서 부를 이름을 알려주세요.<br>당신의 자리를 준비해둘게요.</p><label for="guest-names">내 이름</label><input id="guest-names" type="text" maxlength="20" autocomplete="off" required value="" aria-label="내 이름"><div id="host-candle-options"><label for="candle-count">케이크의 초<span>방을 만드는 사람만 설정 · 1–30개</span></label><div class="candle-input"><button type="button" id="fewer-candles" aria-label="초 하나 줄이기">−</button><input id="candle-count" type="number" inputmode="numeric" min="1" max="30" step="1" value="1" required aria-label="초 개수"><span>개</span><button type="button" id="more-candles" aria-label="초 하나 늘리기">+</button></div></div><button class="setup-submit" type="submit">입장하기 <span>↗</span></button></form></dialog>
+<dialog id="candle-settings" aria-labelledby="candle-settings-title"><form id="candle-settings-form"><button class="setup-close" id="close-candle-settings" type="button" aria-label="닫기">×</button><span class="room-eyebrow">YOUR LITTLE CELEBRATION</span><h2 id="candle-settings-title">촛불을 준비해요.</h2><p class="setup-intro">초대 링크를 만든 사람만 바꿀 수 있어요.</p><label for="edit-candle-count">케이크의 초<span>1–30개</span></label><input id="edit-candle-count" type="number" inputmode="numeric" min="1" max="30" step="1" required aria-label="초 개수 변경"><button class="setup-submit" type="submit">적용하기 <span>↗</span></button></form></dialog>
+<dialog id="invite-link-dialog" aria-labelledby="invite-link-title"><form method="dialog"><h2 id="invite-link-title">함께할 사람에게 보내주세요.</h2><input id="invite-link-value" readonly aria-label="초대 링크"><button class="setup-submit">닫기</button></form></dialog>`
 
 const canvas = document.querySelector<HTMLCanvasElement>('#room-canvas')!
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
@@ -178,7 +189,7 @@ function setGuests(people: Participant[]) {
   for (const [id, guest] of guests) if (!ids.includes(id)) { scene.remove(guest); guest.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose() }); (guest.userData.outfit as THREE.Material).dispose();(guest.userData.hair as THREE.Material).dispose();guestLabels.get(id)?.remove();guestLabels.delete(id);guests.delete(id) }
   document.querySelector('#guest-count')!.textContent = String(ids.length)
 }
-setGuests([{id:'guest-0',name:'나'}])
+setGuests([])
 // A single local guest is the initial room state; remote presence can call setGuests.
 
 const smoke: THREE.Mesh[] = []
@@ -195,22 +206,37 @@ relightButton.addEventListener('click', () => {
   lit = true; blowing = false; for(const item of cakeCandles){item.flame.scale.setScalar(1);item.flame.rotation.z=0;item.flame.visible=true;item.glow.visible=true} candleLight.intensity = 1.4; blowButton.hidden = false; blowButton.disabled = false; relightButton.hidden = true; blowButton.querySelector('span')!.textContent = '후― 불기'; caption.textContent = '새로운 소원을 하나 더 떠올려도 좋아요.'
 })
 const setupDialog=document.querySelector<HTMLDialogElement>('#table-setup')!,setupForm=document.querySelector<HTMLFormElement>('#table-setup-form')!
-const namesInput=document.querySelector<HTMLTextAreaElement>('#guest-names')!,countInput=document.querySelector<HTMLInputElement>('#candle-count')!
-let hasSavedSetup=false
-try{const saved=JSON.parse(localStorage.getItem('little-table-setup')||'null');if(saved&&Array.isArray(saved.names)&&saved.names.length>0&&saved.names.length<=8&&saved.names.every((name:unknown)=>typeof name==='string'&&name.trim().length>0&&[...name].length<=20)&&Number.isInteger(saved.candles)&&saved.candles>=1&&saved.candles<=30){namesInput.value=saved.names.join('\n');countInput.value=String(saved.candles);setGuests(saved.names.map((name:string,i:number)=>({id:`guest-${i}`,name})));setCandleCount(saved.candles);hasSavedSetup=true}}catch{/* The room also works when browser storage is unavailable. */}
-function validateNames(){const names=namesInput.value.split(/[,，\n]+/).map(name=>name.trim()).filter(Boolean);namesInput.setCustomValidity(names.length===0?'입장할 사람의 이름을 적어주세요.':names.length>8?'한 식탁에는 최대 8명까지 앉을 수 있어요.':names.some(name=>[...name].length>20)?'이름은 한 사람당 20자 이내로 적어주세요.':'');return names}
-namesInput.addEventListener('input',validateNames)
+const namesInput=document.querySelector<HTMLInputElement>('#guest-names')!,countInput=document.querySelector<HTMLInputElement>('#candle-count')!
+const candleSettings=document.querySelector<HTMLDialogElement>('#candle-settings')!,editCandleInput=document.querySelector<HTMLInputElement>('#edit-candle-count')!
+const editButton=document.querySelector<HTMLButtonElement>('#edit-table')!,inviteButton=document.querySelector<HTMLButtonElement>('#copy-room-link')!
+let entered=false
+namesInput.value='';countInput.value=String(initialCandles);setCandleCount(initialCandles)
+document.querySelector<HTMLElement>('#host-candle-options')!.hidden=!isHost;countInput.disabled=!isHost
+blowButton.disabled=true
+function applyCandles(count:number){
+ setCandleCount(count);relightButton.click();countInput.value=String(count);editCandleInput.value=String(count)
+ caption.textContent=`소원을 담을 촛불 ${count}개를 준비했어요.`
+ if(isHost){history.replaceState(null,'',roomLink(count));try{localStorage.setItem(`little-table-candles:${roomId}`,String(count))}catch{/* Saving is optional. */}}
+}
+function validateName(){const name=namesInput.value.trim();namesInput.setCustomValidity(!name?'내 이름을 입력해주세요.':/[,，\n]/.test(name)?'자기 이름 하나만 입력해주세요.':[...name].length>20?'이름은 20자 이내로 입력해주세요.':'');return name}
+namesInput.addEventListener('input',validateName)
 setupForm.addEventListener('submit',event=>{
- event.preventDefault();const names=validateNames();if(!setupForm.reportValidity())return
- const count=Number(countInput.value);if(!Number.isInteger(count)||count<1||count>30)return
- setGuests(names.map((name,i)=>({id:`guest-${i}`,name})));setCandleCount(count);relightButton.click();caption.textContent=`${names[0]}님의 소원과 함께, 촛불 ${count}개를 준비했어요.`
- try{localStorage.setItem('little-table-setup',JSON.stringify({names,candles:count}))}catch{/* Saving is optional. */}
- setupDialog.close()
+ event.preventDefault();const name=validateName();if(!setupForm.reportValidity())return
+ const count=isHost?Number(countInput.value):initialCandles;if(!Number.isInteger(count)||count<1||count>30)return
+ setGuests([{id:'guest-0',name}]);entered=true;applyCandles(count);caption.textContent=`${name}님, 작은 소원을 하나 떠올려봐요.`
+ editButton.hidden=!isHost;inviteButton.hidden=!isHost;setupDialog.close()
 })
-document.querySelector('#edit-table')!.addEventListener('click',()=>setupDialog.showModal())
-document.querySelector('#close-setup')!.addEventListener('click',()=>setupDialog.close())
+setupDialog.addEventListener('cancel',event=>{if(!entered)event.preventDefault()})
+editButton.addEventListener('click',()=>{if(!isHost||!entered)return;editCandleInput.value=String(candleCount);candleSettings.showModal()})
+document.querySelector('#close-candle-settings')!.addEventListener('click',()=>candleSettings.close())
+document.querySelector<HTMLFormElement>('#candle-settings-form')!.addEventListener('submit',event=>{event.preventDefault();if(!isHost)return;const count=Number(editCandleInput.value);if(!Number.isInteger(count)||count<1||count>30)return;applyCandles(count);candleSettings.close()})
 for(const [selector,step]of [['#fewer-candles',-1],['#more-candles',1]] as const)document.querySelector(selector)!.addEventListener('click',()=>{countInput.value=String(Math.max(1,Math.min(30,(Number(countInput.value)||1)+step)))})
-if(!hasSavedSetup)setupDialog.showModal()
+inviteButton.addEventListener('click',async()=>{
+ if(!isHost||!entered)return
+ const link=roomLink(candleCount)
+ try{await navigator.clipboard.writeText(link);caption.textContent='초대 링크를 복사했어요. 함께할 사람에게 보내주세요.'}catch{const input=document.querySelector<HTMLInputElement>('#invite-link-value')!;input.value=link;document.querySelector<HTMLDialogElement>('#invite-link-dialog')!.showModal();input.select()}
+})
+setupDialog.showModal()
 
 let yaw = .35, elevation = .47, distance = 13.3, dragging = false, lastX = 0, lastY = 0
 canvas.addEventListener('pointerdown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; canvas.setPointerCapture(e.pointerId) })
