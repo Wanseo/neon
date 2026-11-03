@@ -13,6 +13,10 @@ const icon = (name: keyof typeof icons) => `<svg viewBox="0 0 24 24" fill="none"
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 <canvas id="universe" aria-label="직접 탐험할 수 있는 3D 달 표면"></canvas>
 <header><div class="room glass"><span class="room-symbol">☾</span><span>고요의 바다 <small>01</small></span><span class="divider"></span><span class="live"><i></i> 나 홀로 탐사 중</span></div><div class="tools glass"><span class="orbit-symbol">✧</span><button id="sound" aria-label="우주 사운드 켜기">${icon('sound')}</button><button id="settings" aria-label="설정">${icon('settings')}</button></div></header>
+<aside class="location glass" aria-label="현재 위치: 지구에서 평균 약 384,400km 떨어진 달, 고요의 바다">
+  <div class="location-route" aria-hidden="true"><span class="location-earth"></span><span class="location-path"><span>지구에서 약 384,400 km</span></span><span class="location-moon"><i></i></span></div>
+  <div class="location-labels"><span>지구</span><span class="location-current">지금 여기 <b>달 · 고요의 바다</b></span></div>
+</aside>
 <div class="intro"><div class="eyebrow">A LITTLE FARTHER FROM EVERYDAY</div><h1>오늘은, 달에서.</h1><p>아무것도 하지 않아도 괜찮은 곳.</p></div>
 <div class="coordinates"><span>TRANQUILITY BASE</span><b>00° 40′ 26.7″ N</b><b>23° 28′ 22.7″ E</b></div>
 <div class="name-tag"><span>나</span> 작은 지구인</div>
