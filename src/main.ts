@@ -13,9 +13,11 @@ const icon = (name: keyof typeof icons) => `<svg viewBox="0 0 24 24" fill="none"
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 <canvas id="universe" aria-label="직접 탐험할 수 있는 3D 달 표면"></canvas>
 <header><div class="room glass"><span class="room-symbol">☾</span><span>고요의 바다 <small>01</small></span><span class="divider"></span><span class="live"><i></i> 나 홀로 탐사 중</span></div><div class="tools glass"><span class="orbit-symbol">✧</span><button id="sound" aria-label="우주 사운드 켜기">${icon('sound')}</button><button id="settings" aria-label="설정">${icon('settings')}</button></div></header>
-<aside class="location glass" aria-label="현재 위치: 지구에서 평균 약 384,400km 떨어진 달, 고요의 바다">
-  <div class="location-route" aria-hidden="true"><span class="location-earth"></span><span class="location-path"><span>지구에서 약 384,400 km</span></span><span class="location-moon"><i></i></span></div>
-  <div class="location-labels"><span>지구</span><span class="location-current">지금 여기 <b>달 · 고요의 바다</b></span></div>
+<aside class="lunar-map" aria-label="달 표면 미니맵: 내 위치와 지나온 경로, 달 기지">
+  <div class="map-title"><span>고요의 바다</span><small>LUNAR SURFACE</small></div>
+  <div class="map-terrain"><canvas id="minimap" aria-label="실시간 탐사 위치 지도"></canvas><span class="map-north">N ↑</span></div>
+  <div class="map-legend"><span><i class="you-dot"></i>나의 위치</span><span><i class="base-dot"></i>달 기지</span></div>
+  <div class="map-distance">지구에서 약 384,400 km</div>
 </aside>
 <div class="intro"><div class="eyebrow">A LITTLE FARTHER FROM EVERYDAY</div><h1>오늘은, 달에서.</h1><p>아무것도 하지 않아도 괜찮은 곳.</p></div>
 <div class="coordinates"><span>TRANQUILITY BASE</span><b>00° 40′ 26.7″ N</b><b>23° 28′ 22.7″ E</b></div>
@@ -84,10 +86,50 @@ document.querySelector('#earth')!.addEventListener('click',()=>{lookingEarth=!lo
 document.querySelector('#settings')!.addEventListener('click',()=>document.querySelector<HTMLDialogElement>('#settings-panel')!.showModal())
 document.querySelector('#stars')!.addEventListener('input',e=>starMat.opacity=Number((e.target as HTMLInputElement).value))
 let audioContext:AudioContext|undefined;let soundOn=false;document.querySelector('#sound')!.addEventListener('click',async()=>{if(!audioContext){audioContext=new AudioContext();const gain=audioContext.createGain();gain.gain.value=.025;gain.connect(audioContext.destination);for(const f of [110,164.81,220,277.18]){const osc=audioContext.createOscillator();osc.frequency.value=f;osc.type='sine';osc.connect(gain);osc.start()}}soundOn=!soundOn;await (soundOn?audioContext.resume():audioContext.suspend());document.querySelector('#sound')!.classList.toggle('active',soundOn);document.querySelector('#sound')!.setAttribute('aria-label',soundOn?'우주 사운드 끄기':'우주 사운드 켜기');toast(soundOn?'고요한 우주의 소리를 켰어요.':'소리를 껐어요.')})
+// The map uses the same crater positions and height field as the walkable world.
+const mapCanvas=document.querySelector<HTMLCanvasElement>('#minimap')!
+mapCanvas.width=mapCanvas.height=440
+const mapContext=mapCanvas.getContext('2d')!
+const mapBackground=document.createElement('canvas');mapBackground.width=mapBackground.height=440
+const mapPaint=mapBackground.getContext('2d')!
+let mapCenterX=0,mapCenterZ=-6,mapSpan=84,mapLastTime=-1
+const trail:THREE.Vector2[]=[new THREE.Vector2(0,5)]
+function mapPoint(x:number,z:number){return new THREE.Vector2(220+(x-mapCenterX)*440/mapSpan,220+(z-mapCenterZ)*440/mapSpan)}
+function paintMap(){
+ const data=mapPaint.createImageData(440,440)
+ for(let y=0;y<440;y++)for(let x=0;x<440;x++){
+  const wx=mapCenterX+(x-220)*mapSpan/440,wz=mapCenterZ+(y-220)*mapSpan/440
+  const h=height(wx,wz),slope=height(wx-.5,wz-.6)-h
+  const grain=Math.sin(x*127.1+y*311.7)*43758.5453;const v=THREE.MathUtils.clamp(42+h*3+slope*65+(grain-Math.floor(grain))*7,16,104)
+  const i=(y*440+x)*4;data.data[i]=v*.83;data.data[i+1]=v*.98;data.data[i+2]=v*1.12;data.data[i+3]=255
+ }
+ mapPaint.putImageData(data,0,0)
+ mapPaint.strokeStyle='#a7b8c00c';mapPaint.lineWidth=1
+ for(let i=0;i<=440;i+=55){mapPaint.beginPath();mapPaint.moveTo(i,0);mapPaint.lineTo(i,440);mapPaint.moveTo(0,i);mapPaint.lineTo(440,i);mapPaint.stroke()}
+ // Boulders match the scene's broad rocky terrain without obscuring the route.
+ for(const c of craters){const p=mapPoint(c.x,c.z),r=c.r*440/mapSpan;mapPaint.beginPath();mapPaint.ellipse(p.x,p.y,r,r*.92,0,0,Math.PI*2);mapPaint.strokeStyle='#b8c5d31a';mapPaint.lineWidth=2;mapPaint.stroke()}
+}
+paintMap()
+function updateMap(time:number){
+ if(time-mapLastTime<.12)return;mapLastTime=time
+ const p=player.g.position,last=trail[trail.length-1]
+ if(Math.hypot(p.x-last.x,p.z-last.y)>.6){trail.push(new THREE.Vector2(p.x,p.z));if(trail.length>1400)trail.shift()}
+ if(Math.abs(p.x-mapCenterX)>mapSpan*.38||Math.abs(p.z-mapCenterZ)>mapSpan*.38){mapCenterX=p.x;mapCenterZ=p.z;paintMap()}
+ mapContext.clearRect(0,0,440,440);mapContext.drawImage(mapBackground,0,0)
+ const basePoint=mapPoint(17,-23),start=mapPoint(0,5),current=mapPoint(p.x,p.z)
+ // A quiet dotted guide connects the landing point and the outpost.
+ mapContext.beginPath();mapContext.moveTo(start.x,start.y);mapContext.lineTo(basePoint.x,basePoint.y);mapContext.strokeStyle='#dfba794c';mapContext.lineWidth=2;mapContext.setLineDash([4,9]);mapContext.stroke();mapContext.setLineDash([])
+ mapContext.beginPath();trail.forEach((point,i)=>{const m=mapPoint(point.x,point.y);i?mapContext.lineTo(m.x,m.y):mapContext.moveTo(m.x,m.y)});mapContext.lineTo(current.x,current.y);mapContext.strokeStyle='#f3b07d';mapContext.lineWidth=5;mapContext.lineCap='round';mapContext.lineJoin='round';mapContext.stroke()
+ mapContext.fillStyle='#bcd0da';mapContext.fillRect(basePoint.x-6,basePoint.y-6,12,12);mapContext.font='18px sans-serif';mapContext.fillStyle='#c0ccd3';mapContext.fillText('BASE',basePoint.x+15,basePoint.y+6)
+ mapContext.beginPath();mapContext.arc(start.x,start.y,4,0,Math.PI*2);mapContext.fillStyle='#c4a77a';mapContext.fill()
+ const heading=player.g.rotation.y;mapContext.save();mapContext.translate(current.x,current.y);mapContext.rotate(-heading);mapContext.beginPath();mapContext.moveTo(0,0);mapContext.arc(0,0,37,Math.PI/2-.45,Math.PI/2+.45);mapContext.closePath();mapContext.fillStyle='#f2c08b24';mapContext.fill();mapContext.restore()
+ mapContext.beginPath();mapContext.arc(current.x,current.y,17+Math.sin(time*2)*2,0,Math.PI*2);mapContext.strokeStyle='#ffbd7840';mapContext.lineWidth=2;mapContext.stroke()
+ mapContext.beginPath();mapContext.arc(current.x,current.y,8,0,Math.PI*2);mapContext.fillStyle='#ef9b68';mapContext.fill();mapContext.strokeStyle='#fff8e9';mapContext.lineWidth=4;mapContext.stroke()
+}
 const clock=new THREE.Clock();let elapsed=0;const label=document.querySelector<HTMLElement>('.name-tag')!
 function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.05);elapsed+=dt;let dx=0,dz=0;if(keys.has('w')||keys.has('arrowup'))dz--;if(keys.has('s')||keys.has('arrowdown'))dz++;if(keys.has('a')||keys.has('arrowleft'))dx--;if(keys.has('d')||keys.has('arrowright'))dx++;if(dx||dz){target.copy(player.g.position);target.x+=(dx*Math.cos(yaw)+dz*Math.sin(yaw))*1.5;target.z+=(-dx*Math.sin(yaw)+dz*Math.cos(yaw))*1.5;lookingEarth=false}
 const delta=new THREE.Vector3(target.x-player.g.position.x,0,target.z-player.g.position.z);const walking=delta.length()>.12;if(walking){delta.normalize();player.g.position.addScaledVector(delta,Math.min(dt*3.4,Math.hypot(target.x-player.g.position.x,target.z-player.g.position.z)));const a=Math.atan2(delta.x,delta.z);player.g.rotation.y+=Math.atan2(Math.sin(a-player.g.rotation.y),Math.cos(a-player.g.rotation.y))*Math.min(dt*9,1)}player.legs.forEach((leg,i)=>leg.rotation.x=walking?Math.sin(elapsed*7+i*Math.PI)*.45:0)
 let lift=0;if(jumping){jumpTime+=dt;lift=Math.sin(Math.min(jumpTime/2.4,1)*Math.PI)*3.2;if(jumpTime>=2.4)jumping=false}player.g.position.y=height(player.g.position.x,player.g.position.z)+lift+(walking?Math.abs(Math.sin(elapsed*7))*.09:0)
 focus.lerp(new THREE.Vector3(player.g.position.x,player.g.position.y+1.5,player.g.position.z),.06);const offset=new THREE.Vector3(Math.sin(yaw)*Math.cos(pitch)*distance,Math.sin(pitch)*distance,Math.cos(yaw)*Math.cos(pitch)*distance);camera.position.copy(focus).add(offset);camera.position.y=Math.max(camera.position.y,height(camera.position.x,camera.position.z)+1.5);camera.lookAt(lookingEarth?new THREE.Vector3().lerpVectors(focus,earth.position,.45):focus);earth.rotation.y+=dt*.008;(marker.material as THREE.MeshBasicMaterial).opacity*=.98
-const screen=player.g.position.clone().add(new THREE.Vector3(0,2.8,0)).project(camera);label.style.left=`${(screen.x*.5+.5)*innerWidth}px`;label.style.top=`${(-screen.y*.5+.5)*innerHeight}px`;label.style.opacity=screen.z<1&&!lookingEarth?'1':'0';renderer.render(scene,camera)}
+const screen=player.g.position.clone().add(new THREE.Vector3(0,2.8,0)).project(camera);label.style.left=`${(screen.x*.5+.5)*innerWidth}px`;label.style.top=`${(-screen.y*.5+.5)*innerHeight}px`;label.style.opacity=screen.z<1&&!lookingEarth?'1':'0';updateMap(elapsed);renderer.render(scene,camera)}
 focus.copy(player.g.position);animate();window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)})
