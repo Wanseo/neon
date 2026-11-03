@@ -72,17 +72,36 @@ function plantFlag(x:number,z:number){const flag=new THREE.Group();flag.position
 const marker=new THREE.Mesh(new THREE.RingGeometry(.35,.43,40),new THREE.MeshBasicMaterial({color:0xe9c790,transparent:true,opacity:0}));marker.rotation.x=-Math.PI/2;scene.add(marker)
 let yaw=0,pitch=.18,distance=15;const focus=new THREE.Vector3();const target=player.g.position.clone();let jumping=false,jumpTime=0;let lookingEarth=false
 const ray=new THREE.Raycaster();const pointer=new THREE.Vector2();let downX=0,downY=0,lastX=0,lastY=0,dragging=false,moved=false
-canvas.addEventListener('pointerdown',e=>{downX=lastX=e.clientX;downY=lastY=e.clientY;dragging=true;moved=false;canvas.setPointerCapture(e.pointerId)})
-canvas.addEventListener('pointermove',e=>{if(!dragging)return;if(Math.hypot(e.clientX-downX,e.clientY-downY)>5)moved=true;if(moved){yaw-=(e.clientX-lastX)*.005;pitch=THREE.MathUtils.clamp(pitch+(e.clientY-lastY)*.003,.08,1.1);lookingEarth=false}lastX=e.clientX;lastY=e.clientY})
-canvas.addEventListener('pointerup',e=>{dragging=false;if(moved)return;pointer.set(e.clientX/innerWidth*2-1,-e.clientY/innerHeight*2+1);ray.setFromCamera(pointer,camera);const hit=ray.intersectObject(ground)[0];if(hit&&hit.point.distanceTo(player.g.position)<100){target.copy(hit.point);marker.position.copy(hit.point);marker.position.y+=.06;(marker.material as THREE.MeshBasicMaterial).opacity=.9;lookingEarth=false}})
-canvas.addEventListener('wheel',e=>{e.preventDefault();distance=THREE.MathUtils.clamp(distance+e.deltaY*.015,6,38)},{passive:false})
+const touches=new Map<number,THREE.Vector2>();let pinchDistance=0
+function changeZoom(amount:number){distance=THREE.MathUtils.clamp(distance+amount,.65,38);lookingEarth=false}
+canvas.addEventListener('pointerdown',e=>{
+ touches.set(e.pointerId,new THREE.Vector2(e.clientX,e.clientY));canvas.setPointerCapture(e.pointerId)
+ downX=lastX=e.clientX;downY=lastY=e.clientY;dragging=true;moved=touches.size>1
+ if(touches.size===2){const points=[...touches.values()];pinchDistance=points[0].distanceTo(points[1])}
+})
+canvas.addEventListener('pointermove',e=>{
+ if(!touches.has(e.pointerId))return;touches.set(e.pointerId,new THREE.Vector2(e.clientX,e.clientY))
+ if(touches.size>1){const points=[...touches.values()],next=points[0].distanceTo(points[1]);if(pinchDistance>0)changeZoom((pinchDistance-next)*.04);pinchDistance=next;moved=true;return}
+ if(!dragging)return;if(Math.hypot(e.clientX-downX,e.clientY-downY)>5)moved=true
+ if(moved){yaw-=(e.clientX-lastX)*.005;pitch=THREE.MathUtils.clamp(pitch+(e.clientY-lastY)*.003,distance<3?-.95:.03,1.1);lookingEarth=false}
+ lastX=e.clientX;lastY=e.clientY
+})
+canvas.addEventListener('pointerup',e=>{
+ const wasPinching=pinchDistance>0;touches.delete(e.pointerId);dragging=touches.size>0
+ if(touches.size){const point=[...touches.values()][0];downX=lastX=point.x;downY=lastY=point.y;moved=true;return}
+ pinchDistance=0;if(moved||wasPinching)return
+ pointer.set(e.clientX/innerWidth*2-1,-e.clientY/innerHeight*2+1);ray.setFromCamera(pointer,camera)
+ const hit=ray.intersectObject(ground)[0];if(hit&&hit.point.distanceTo(player.g.position)<100){target.copy(hit.point);marker.position.copy(hit.point);marker.position.y+=.06;(marker.material as THREE.MeshBasicMaterial).opacity=.9;lookingEarth=false}
+})
+canvas.addEventListener('pointercancel',e=>{touches.delete(e.pointerId);dragging=false;moved=true;pinchDistance=0})
+canvas.addEventListener('wheel',e=>{e.preventDefault();changeZoom(e.deltaY*.015)},{passive:false})
 const keys=new Set<string>();window.addEventListener('keydown',e=>{if(e.target instanceof HTMLInputElement)return;if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();keys.add(e.key.toLowerCase());if(e.code==='Space')jump()});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>keys.clear())
 let toastTimer:ReturnType<typeof setTimeout>;function toast(message:string){const t=document.querySelector('#toast')!;t.textContent=message;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3000)}
 function jump(){if(!jumping){jumping=true;jumpTime=0;toast('여기서는 조금 더 가볍게. 달의 중력은 지구의 1/6이에요.')}}
 document.querySelector('#jump')!.addEventListener('click',jump)
 let flags=0;document.querySelector('#flag')!.addEventListener('click',()=>{if(flags>=12){toast('오늘의 탐사 흔적을 충분히 남겼어요.');return}plantFlag(player.g.position.x+1.3,player.g.position.z);flags++;toast('작은 지구인이 다녀간 자리 ✧')})
 document.querySelector('#home')!.addEventListener('click',()=>{target.set(12,0,-16);lookingEarth=false;toast('고요의 기지로 돌아가는 중')})
-document.querySelector('#earth')!.addEventListener('click',()=>{lookingEarth=!lookingEarth;yaw=.34;pitch=.12;toast(lookingEarth?'저 푸른 점에 우리의 모든 일상이 있어요.':'다시, 나의 작은 탐사')})
+document.querySelector('#earth')!.addEventListener('click',()=>{lookingEarth=!lookingEarth;distance=Math.max(distance,8);yaw=.34;pitch=.12;toast(lookingEarth?'저 푸른 점에 우리의 모든 일상이 있어요.':'다시, 나의 작은 탐사')})
 document.querySelector('#settings')!.addEventListener('click',()=>document.querySelector<HTMLDialogElement>('#settings-panel')!.showModal())
 document.querySelector('#stars')!.addEventListener('input',e=>starMat.opacity=Number((e.target as HTMLInputElement).value))
 let audioContext:AudioContext|undefined;let soundOn=false;document.querySelector('#sound')!.addEventListener('click',async()=>{if(!audioContext){audioContext=new AudioContext();const gain=audioContext.createGain();gain.gain.value=.025;gain.connect(audioContext.destination);for(const f of [110,164.81,220,277.18]){const osc=audioContext.createOscillator();osc.frequency.value=f;osc.type='sine';osc.connect(gain);osc.start()}}soundOn=!soundOn;await (soundOn?audioContext.resume():audioContext.suspend());document.querySelector('#sound')!.classList.toggle('active',soundOn);document.querySelector('#sound')!.setAttribute('aria-label',soundOn?'우주 사운드 끄기':'우주 사운드 켜기');toast(soundOn?'고요한 우주의 소리를 켰어요.':'소리를 껐어요.')})
@@ -126,10 +145,38 @@ function updateMap(time:number){
  mapContext.beginPath();mapContext.arc(current.x,current.y,17+Math.sin(time*2)*2,0,Math.PI*2);mapContext.strokeStyle='#ffbd7840';mapContext.lineWidth=2;mapContext.stroke()
  mapContext.beginPath();mapContext.arc(current.x,current.y,8,0,Math.PI*2);mapContext.fillStyle='#ef9b68';mapContext.fill();mapContext.strokeStyle='#fff8e9';mapContext.lineWidth=4;mapContext.stroke()
 }
+// Camera-mounted gloves enter with the eye-level view and sway gently while walking.
+scene.add(camera)
+const hands=new THREE.Group();camera.add(hands);hands.visible=false
+for(const side of [-1,1]){
+ const arm=new THREE.Group();arm.position.set(side*.36,-.43,-.57);arm.rotation.set(-.9,side*-.18,side*-.2);hands.add(arm)
+ mesh(new THREE.CapsuleGeometry(.105,.43,6,12),white,arm,0,-.12,0)
+ mesh(new THREE.CylinderGeometry(.115,.115,.065,16),dark,arm,0,.145,0)
+ mesh(new THREE.SphereGeometry(.115,16,12),white,arm,0,.25,0)
+ mesh(new THREE.SphereGeometry(.055,12,8),white,arm,-side*.10,.21,.02)
+}
+let zoomDistance=distance,firstPerson=false
+const hint=document.querySelector<HTMLElement>('.hint')!
+const orbitHint='바닥을 클릭해 이동 <em>·</em> 드래그로 둘러보기 <em>·</em> 휠 / 두 손가락으로 확대'
+const eyeHint='1인칭 탐사 <em>·</em> WASD / 방향키로 이동 <em>·</em> 드래그로 둘러보기 <em>·</em> 축소하면 3인칭'
+hint.innerHTML=orbitHint
 const clock=new THREE.Clock();let elapsed=0;const label=document.querySelector<HTMLElement>('.name-tag')!
 function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.05);elapsed+=dt;let dx=0,dz=0;if(keys.has('w')||keys.has('arrowup'))dz--;if(keys.has('s')||keys.has('arrowdown'))dz++;if(keys.has('a')||keys.has('arrowleft'))dx--;if(keys.has('d')||keys.has('arrowright'))dx++;if(dx||dz){target.copy(player.g.position);target.x+=(dx*Math.cos(yaw)+dz*Math.sin(yaw))*1.5;target.z+=(-dx*Math.sin(yaw)+dz*Math.cos(yaw))*1.5;lookingEarth=false}
 const delta=new THREE.Vector3(target.x-player.g.position.x,0,target.z-player.g.position.z);const walking=delta.length()>.12;if(walking){delta.normalize();player.g.position.addScaledVector(delta,Math.min(dt*3.4,Math.hypot(target.x-player.g.position.x,target.z-player.g.position.z)));const a=Math.atan2(delta.x,delta.z);player.g.rotation.y+=Math.atan2(Math.sin(a-player.g.rotation.y),Math.cos(a-player.g.rotation.y))*Math.min(dt*9,1)}player.legs.forEach((leg,i)=>leg.rotation.x=walking?Math.sin(elapsed*7+i*Math.PI)*.45:0)
 let lift=0;if(jumping){jumpTime+=dt;lift=Math.sin(Math.min(jumpTime/2.4,1)*Math.PI)*3.2;if(jumpTime>=2.4)jumping=false}player.g.position.y=height(player.g.position.x,player.g.position.z)+lift+(walking?Math.abs(Math.sin(elapsed*7))*.09:0)
-focus.lerp(new THREE.Vector3(player.g.position.x,player.g.position.y+1.5,player.g.position.z),.06);const offset=new THREE.Vector3(Math.sin(yaw)*Math.cos(pitch)*distance,Math.sin(pitch)*distance,Math.cos(yaw)*Math.cos(pitch)*distance);camera.position.copy(focus).add(offset);camera.position.y=Math.max(camera.position.y,height(camera.position.x,camera.position.z)+1.5);camera.lookAt(lookingEarth?new THREE.Vector3().lerpVectors(focus,earth.position,.45):focus);earth.rotation.y+=dt*.008;(marker.material as THREE.MeshBasicMaterial).opacity*=.98
-const screen=player.g.position.clone().add(new THREE.Vector3(0,2.8,0)).project(camera);label.style.left=`${(screen.x*.5+.5)*innerWidth}px`;label.style.top=`${(-screen.y*.5+.5)*innerHeight}px`;label.style.opacity=screen.z<1&&!lookingEarth?'1':'0';updateMap(elapsed);renderer.render(scene,camera)}
+zoomDistance=THREE.MathUtils.damp(zoomDistance,distance,10,dt)
+const immersion=1-THREE.MathUtils.smoothstep(zoomDistance,.9,3.5)
+const eye=new THREE.Vector3(player.g.position.x,player.g.position.y+1.8,player.g.position.z)
+focus.lerp(new THREE.Vector3(player.g.position.x,player.g.position.y+1.5,player.g.position.z),1-Math.exp(-10*dt))
+const offset=new THREE.Vector3(Math.sin(yaw)*Math.cos(pitch)*zoomDistance,Math.sin(pitch)*zoomDistance,Math.cos(yaw)*Math.cos(pitch)*zoomDistance)
+camera.position.copy(focus).add(offset).lerp(eye,immersion)
+camera.position.y=Math.max(camera.position.y,height(camera.position.x,camera.position.z)+.5)
+const forward=new THREE.Vector3(-Math.sin(yaw)*Math.cos(pitch),-Math.sin(pitch),-Math.cos(yaw)*Math.cos(pitch))
+const lookTarget=lookingEarth?new THREE.Vector3().lerpVectors(focus,earth.position,.45):focus.clone()
+lookTarget.lerp(eye.clone().addScaledVector(forward,20),immersion);camera.lookAt(lookTarget)
+player.g.visible=immersion<.45;hands.visible=immersion>.85;hands.scale.setScalar(THREE.MathUtils.smoothstep(immersion,.85,1))
+hands.position.y=walking?Math.sin(elapsed*7)*.012:Math.sin(elapsed*1.5)*.004;hands.rotation.z=walking?Math.sin(elapsed*3.5)*.015:0
+if(firstPerson!==(immersion>.85)){firstPerson=immersion>.85;hint.innerHTML=firstPerson?eyeHint:orbitHint}
+earth.rotation.y+=dt*.008;(marker.material as THREE.MeshBasicMaterial).opacity*=.98
+const screen=player.g.position.clone().add(new THREE.Vector3(0,2.8,0)).project(camera);label.style.left=`${(screen.x*.5+.5)*innerWidth}px`;label.style.top=`${(-screen.y*.5+.5)*innerHeight}px`;label.style.opacity=screen.z<1&&!lookingEarth&&immersion<.2?'1':'0';updateMap(elapsed);renderer.render(scene,camera)}
 focus.copy(player.g.position);animate();window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)})
