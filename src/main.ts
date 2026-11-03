@@ -4,6 +4,7 @@ import { createCompanions } from './companions'
 import { createLunarOverview } from './lunar-overview'
 import moonSurfaceUrl from './assets/moon-lroc.jpg'
 import { createSparkles } from './sparkles'
+import { createPlanetTravel } from './planet-travel'
 
 const icons = {
  sound: '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M16 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>',
@@ -99,11 +100,13 @@ const ray=new THREE.Raycaster();const pointer=new THREE.Vector2();let downX=0,do
 const touches=new Map<number,THREE.Vector2>();let pinchDistance=0
 function changeZoom(amount:number){distance=THREE.MathUtils.clamp(distance+amount,.65,38);lookingEarth=false}
 canvas.addEventListener('pointerdown',e=>{
+ if(planetTravel.active)return
  touches.set(e.pointerId,new THREE.Vector2(e.clientX,e.clientY));canvas.setPointerCapture(e.pointerId)
  downX=lastX=e.clientX;downY=lastY=e.clientY;dragging=true;moved=touches.size>1
  if(touches.size===2){const points=[...touches.values()];pinchDistance=points[0].distanceTo(points[1])}
 })
 canvas.addEventListener('pointermove',e=>{
+ if(planetTravel.active)return
  if(!touches.has(e.pointerId))return;touches.set(e.pointerId,new THREE.Vector2(e.clientX,e.clientY))
  if(touches.size>1){const points=[...touches.values()],next=points[0].distanceTo(points[1]);if(pinchDistance>0)changeZoom((pinchDistance-next)*.04);pinchDistance=next;moved=true;return}
  if(!dragging)return;if(Math.hypot(e.clientX-downX,e.clientY-downY)>5)moved=true
@@ -111,6 +114,7 @@ canvas.addEventListener('pointermove',e=>{
  lastX=e.clientX;lastY=e.clientY
 })
 canvas.addEventListener('pointerup',e=>{
+ if(planetTravel.active)return
  const wasPinching=pinchDistance>0;touches.delete(e.pointerId);dragging=touches.size>0
  if(touches.size){const point=[...touches.values()][0];downX=lastX=point.x;downY=lastY=point.y;moved=true;return}
  pinchDistance=0;if(moved||wasPinching)return
@@ -120,8 +124,8 @@ canvas.addEventListener('pointerup',e=>{
  const hit=ray.intersectObject(ground)[0];if(hit&&hit.point.distanceTo(player.g.position)<100){target.copy(hit.point);marker.position.copy(hit.point);marker.position.y+=.06;(marker.material as THREE.MeshBasicMaterial).opacity=.9;lookingEarth=false}
 })
 canvas.addEventListener('pointercancel',e=>{touches.delete(e.pointerId);dragging=false;moved=true;pinchDistance=0})
-canvas.addEventListener('wheel',e=>{e.preventDefault();changeZoom(e.deltaY*.015)},{passive:false})
-const keys=new Set<string>();window.addEventListener('keydown',e=>{if(e.target instanceof HTMLInputElement)return;if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();keys.add(e.key.toLowerCase());if(e.code==='Space'&&!e.repeat)jump()});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>keys.clear())
+canvas.addEventListener('wheel',e=>{e.preventDefault();if(!planetTravel.active)changeZoom(e.deltaY*.015)},{passive:false})
+const keys=new Set<string>();window.addEventListener('keydown',e=>{if(e.target instanceof HTMLInputElement)return;if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();keys.add(e.key.toLowerCase());if(e.code==='Space'&&!e.repeat&&!planetTravel.active)jump()});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>keys.clear())
 let toastTimer:ReturnType<typeof setTimeout>;function toast(message:string){const t=document.querySelector('#toast')!;t.textContent=message;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3000)}
 const flightHud=document.querySelector<HTMLElement>('.flight-hud')!
 const altitudeLabel=document.querySelector('#altitude')!
@@ -208,8 +212,14 @@ const flightHint='우주 유영 <em>·</em> WASD 이동 <em>·</em> SPACE 상승
 const orbitHint='바닥을 클릭해 이동 <em>·</em> 드래그로 둘러보기 <em>·</em> 휠 / 두 손가락으로 확대'
 const eyeHint='1인칭 탐사 <em>·</em> WASD / 방향키로 이동 <em>·</em> 드래그로 둘러보기 <em>·</em> 축소하면 3인칭'
 hint.innerHTML=orbitHint
+const planetTravel=createPlanetTravel(canvas,player.g,companions.objects,()=>{
+ keys.clear();spacewalk=false;returning=false;jumping=false;verticalSpeed=0;jumpCount=0;flightVelocity.set(0,0,0)
+ player.g.position.set(12,height(12,-16),-16);target.copy(player.g.position);focus.copy(player.g.position);distance=15;zoomDistance=15;yaw=0;pitch=.18;lookingEarth=false;setFlight(false)
+ toast('달의 고요한 기지로 돌아왔어요.')
+})
 const clock=new THREE.Clock();let elapsed=0;const label=document.querySelector<HTMLElement>('.name-tag')!
 function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.05);elapsed+=dt
+if(planetTravel.active){planetTravel.update(dt,elapsed,keys,renderer);return}
 let dx=0,dz=0
 if(!returning){if(keys.has('w')||keys.has('arrowup'))dz--;if(keys.has('s')||keys.has('arrowdown'))dz++;if(keys.has('a')||keys.has('arrowleft'))dx--;if(keys.has('d')||keys.has('arrowright'))dx++}
 const input=new THREE.Vector3(dx,0,dz);if(input.lengthSq()>1)input.normalize();input.applyAxisAngle(new THREE.Vector3(0,1,0),yaw)
