@@ -28,3 +28,5 @@ New rooms start with zero candles. Zero is a valid shared setting; the cake has 
 
 
 Candle defaults are independent from live room state: both the entry candle field and the creator's candle settings dialog always open at 0, with browser form restoration disabled. Invitation URLs contain only the room ID; legacy `candles` URL parameters are ignored and removed. Every browser starts the cake at 0 and receives the creator's current cake state only after joining the live room. If multiple creator tabs are present, snapshots from an older creator session cannot overwrite the newest creator session's defaults. Back/forward-cache re-entry reloads rather than restoring stale input fields.
+
+The invite button always opens a visible dialog synchronously. Clipboard work only runs on the explicit copy button, with a 1.5-second timeout, a legacy copy fallback and a selectable read-only URL. Copy success/failure is shown inside the dialog; supported phones also offer a native share button. Do not make showing the invite link depend on clipboard permission or a clipboard promise settling.

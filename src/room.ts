@@ -29,7 +29,7 @@ document.querySelector('#app')!.innerHTML = `
 <button id="table-lamp-switch" class="lamp-switch" type="button" aria-label="테이블 조명 끄기" aria-pressed="true"><i></i><span>조명 켜짐</span></button><button id="reset-room-view" class="reset-room-view" type="button" aria-label="방 전체가 보이도록 시점 초기화">⊞ <span>화면 맞추기</span></button><div class="room-vignette"></div><div id="celebration" aria-hidden="true"></div>
 <dialog id="table-setup" aria-labelledby="setup-title"><form id="table-setup-form" autocomplete="off"><span class="room-eyebrow">A SEAT JUST FOR YOU</span><h2 id="setup-title">누구인가요?</h2><p class="setup-intro">이 식탁에서 부를 이름을 알려주세요.<br>당신의 자리를 준비해둘게요.</p><label for="guest-names">내 이름</label><input id="guest-names" type="text" maxlength="20" autocomplete="off" required value="" aria-label="내 이름"><div id="host-candle-options"><label for="candle-count">케이크의 초<span>방을 만드는 사람만 설정 · 0–30개</span></label><div class="candle-input"><button type="button" id="fewer-candles" aria-label="초 하나 줄이기">−</button><input id="candle-count" autocomplete="off" type="number" inputmode="numeric" min="0" max="30" step="1" value="0" required aria-label="초 개수"><span>개</span><button type="button" id="more-candles" aria-label="초 하나 늘리기">+</button></div></div><button class="setup-submit" type="submit">입장하기 <span>↗</span></button></form></dialog>
 <dialog id="candle-settings" aria-labelledby="candle-settings-title"><form id="candle-settings-form" autocomplete="off"><button class="setup-close" id="close-candle-settings" type="button" aria-label="닫기">×</button><span class="room-eyebrow">YOUR LITTLE CELEBRATION</span><h2 id="candle-settings-title">촛불을 준비해요.</h2><p class="setup-intro">초대 링크를 만든 사람만 바꿀 수 있어요.</p><label for="edit-candle-count">케이크의 초<span>0–30개</span></label><input id="edit-candle-count" autocomplete="off" value="0" type="number" inputmode="numeric" min="0" max="30" step="1" required aria-label="초 개수 변경"><button class="setup-submit" type="submit">적용하기 <span>↗</span></button></form></dialog>
-<dialog id="invite-link-dialog" aria-labelledby="invite-link-title"><form method="dialog"><h2 id="invite-link-title">함께할 사람에게 보내주세요.</h2><input id="invite-link-value" readonly aria-label="초대 링크"><button class="setup-submit">닫기</button></form></dialog>`
+<dialog id="invite-link-dialog" aria-labelledby="invite-link-title"><button class="setup-close" id="close-invite-link" type="button" aria-label="닫기">×</button><span class="room-eyebrow">A LITTLE INVITATION</span><h2 id="invite-link-title">함께할 사람을 초대해요.</h2><p class="setup-intro">이 링크로 들어오면 같은 식탁에 앉을 수 있어요.</p><label class="invite-link-label" for="invite-link-value">우리 방의 초대 링크</label><input id="invite-link-value" readonly aria-label="초대 링크"><p id="invite-copy-status" role="status">아래 버튼으로 복사해 함께할 사람에게 보내주세요.</p><button class="setup-submit" id="copy-invite-value" type="button">링크 복사 <span>↗</span></button><button id="share-invite-value" class="invite-share" type="button" hidden>다른 앱으로 공유하기</button></dialog>`
 
 const canvas = document.querySelector<HTMLCanvasElement>('#room-canvas')!
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
@@ -262,11 +262,30 @@ editButton.addEventListener('click',()=>{if(!isHost||!entered)return;editCandleI
 document.querySelector('#close-candle-settings')!.addEventListener('click',()=>candleSettings.close())
 document.querySelector<HTMLFormElement>('#candle-settings-form')!.addEventListener('submit',event=>{event.preventDefault();if(!isHost)return;const count=Number(editCandleInput.value);if(!Number.isInteger(count)||count<0||count>30)return;applyCandles(count);candleSettings.close()})
 for(const [selector,step]of [['#fewer-candles',-1],['#more-candles',1]] as const)document.querySelector(selector)!.addEventListener('click',()=>{countInput.value=String(Math.max(0,Math.min(30,(Number(countInput.value)||0)+step)))})
-inviteButton.addEventListener('click',async()=>{
+const inviteDialog=document.querySelector<HTMLDialogElement>('#invite-link-dialog')!,inviteInput=document.querySelector<HTMLInputElement>('#invite-link-value')!,copyInviteButton=document.querySelector<HTMLButtonElement>('#copy-invite-value')!,shareInviteButton=document.querySelector<HTMLButtonElement>('#share-invite-value')!,copyStatus=document.querySelector<HTMLElement>('#invite-copy-status')!
+inviteButton.addEventListener('click',()=>{
  if(!isHost||!entered)return
- const link=roomLink()
- try{await navigator.clipboard.writeText(link);caption.textContent='초대 링크를 복사했어요. 함께할 사람에게 보내주세요.'}catch{const input=document.querySelector<HTMLInputElement>('#invite-link-value')!;input.value=link;document.querySelector<HTMLDialogElement>('#invite-link-dialog')!.showModal();input.select()}
+ inviteInput.value=roomLink();copyStatus.textContent='아래 버튼으로 복사해 함께할 사람에게 보내주세요.';copyInviteButton.innerHTML='링크 복사 <span>↗</span>';copyInviteButton.disabled=false;shareInviteButton.hidden=typeof navigator.share!=='function'
+ inviteDialog.showModal()
 })
+document.querySelector('#close-invite-link')!.addEventListener('click',()=>inviteDialog.close())
+function selectInviteLink(){inviteInput.focus();inviteInput.select();inviteInput.setSelectionRange(0,inviteInput.value.length);inviteInput.scrollLeft=0}
+copyInviteButton.addEventListener('click',async()=>{
+ copyInviteButton.disabled=true;copyInviteButton.innerHTML='복사 중… <span>…</span>';copyStatus.textContent='초대 링크를 복사하고 있어요.'
+ let copied=false,copyTimeout:ReturnType<typeof setTimeout>|undefined
+ try{
+  if(!navigator.clipboard?.writeText)throw Error('Clipboard unavailable')
+  await Promise.race([navigator.clipboard.writeText(inviteInput.value),new Promise<never>((_,reject)=>{copyTimeout=setTimeout(()=>reject(Error('Clipboard timed out')),1500)})]);copied=true
+ }catch{
+  selectInviteLink();try{copied=document.execCommand('copy')}catch{/* The visible input supports manual copying. */}
+ }finally{if(copyTimeout)clearTimeout(copyTimeout);copyInviteButton.disabled=false}
+ if(copied){copyStatus.textContent='복사했어요! 함께할 사람에게 이 링크를 보내주세요.';copyInviteButton.innerHTML='복사 완료 <span>✓</span>';caption.textContent='초대 링크를 복사했어요.'}
+ else{copyInviteButton.innerHTML='다시 복사하기 <span>↗</span>';selectInviteLink();copyStatus.textContent='자동 복사가 막혀 있어요. 위 링크를 길게 누르거나 선택해 직접 복사해주세요.'}
+})
+shareInviteButton.addEventListener('click',async()=>{
+ try{await navigator.share({title:'작은 식탁에 초대해요',text:'같은 식탁에서 잠깐 함께해요.',url:inviteInput.value});copyStatus.textContent='초대 링크를 공유했어요.'}catch(error){if(!(error instanceof DOMException&&error.name==='AbortError'))copyStatus.textContent='공유창을 열지 못했어요. 링크 복사 버튼을 이용해주세요.'}
+})
+
 function sendRoomSnapshot(){
  if(!isHost||!presence)return
  void presence.sendAction({type:'state',state:{candles:candleCount,lit:lit&&!blowing,lamp:lampOn,lights:roomLightsOn}})
