@@ -11,13 +11,12 @@ let applyingRemote=false,remoteActorId:string|undefined
 function broadcastRoomAction(action:RoomAction){if(!applyingRemote)void presence?.sendAction(action)}
 const roomParams=new URLSearchParams(location.hash.slice(1))
 const existingRoomId=roomParams.get('room'),roomId=existingRoomId||crypto.randomUUID()
-let isHost=!existingRoomId,initialCandles=Number(roomParams.get('candles'))||0
+let isHost=!existingRoomId
+const initialCandles=0
 try{if(existingRoomId)isHost=localStorage.getItem(`little-table-owner:${roomId}`)==='true';if(isHost){localStorage.setItem(`little-table-owner:${roomId}`,'true');localStorage.removeItem(`little-table-candles:${roomId}`)}}catch{/* A newly created room still works without storage. */}
-// Creator entry always starts empty; stale URLs and old saved cake settings are not defaults.
-if(isHost)initialCandles=0
-initialCandles=Number.isInteger(initialCandles)&&initialCandles>=0&&initialCandles<=30?initialCandles:0
-function roomLink(count:number){const url=new URL(location.href);url.hash=new URLSearchParams({room:roomId,candles:String(count)}).toString();return url.href}
-if(isHost)history.replaceState(null,'',roomLink(initialCandles))
+// Links identify the shared room, never a default candle count. Legacy count parameters are discarded.
+function roomLink(){const url=new URL(location.href);url.hash=new URLSearchParams({room:roomId}).toString();return url.href}
+history.replaceState(null,'',roomLink())
 
 const windIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 8h11c5 0 5-6 1-6-2 0-3 1-3 3M3 12h15c5 0 5 7 1 7-2 0-3-1-3-3M3 16h5c4 0 4 6 0 6"/></svg>'
 document.querySelector('#app')!.innerHTML = `
@@ -28,8 +27,8 @@ document.querySelector('#app')!.innerHTML = `
 <section class="wish-controls"><div class="wish-caption" id="wish-caption" role="status">잠깐 눈을 감고, 작은 소원을 떠올려봐요.</div><button id="blow-candle">${windIcon}<span>후― 불기</span><small>MAKE A WISH</small></button><button id="relight-candle" hidden>다시 촛불 켜기 <span>↺</span></button></section>
 <footer class="room-footer"><span><i></i> 조금 느리게 머물러도 되는 곳</span><span>드래그로 둘러보기 <em>·</em> 휠로 가까이 보기</span></footer>
 <button id="table-lamp-switch" class="lamp-switch" type="button" aria-label="테이블 조명 끄기" aria-pressed="true"><i></i><span>조명 켜짐</span></button><button id="reset-room-view" class="reset-room-view" type="button" aria-label="방 전체가 보이도록 시점 초기화">⊞ <span>화면 맞추기</span></button><div class="room-vignette"></div><div id="celebration" aria-hidden="true"></div>
-<dialog id="table-setup" aria-labelledby="setup-title"><form id="table-setup-form"><span class="room-eyebrow">A SEAT JUST FOR YOU</span><h2 id="setup-title">누구인가요?</h2><p class="setup-intro">이 식탁에서 부를 이름을 알려주세요.<br>당신의 자리를 준비해둘게요.</p><label for="guest-names">내 이름</label><input id="guest-names" type="text" maxlength="20" autocomplete="off" required value="" aria-label="내 이름"><div id="host-candle-options"><label for="candle-count">케이크의 초<span>방을 만드는 사람만 설정 · 0–30개</span></label><div class="candle-input"><button type="button" id="fewer-candles" aria-label="초 하나 줄이기">−</button><input id="candle-count" type="number" inputmode="numeric" min="0" max="30" step="1" value="0" required aria-label="초 개수"><span>개</span><button type="button" id="more-candles" aria-label="초 하나 늘리기">+</button></div></div><button class="setup-submit" type="submit">입장하기 <span>↗</span></button></form></dialog>
-<dialog id="candle-settings" aria-labelledby="candle-settings-title"><form id="candle-settings-form"><button class="setup-close" id="close-candle-settings" type="button" aria-label="닫기">×</button><span class="room-eyebrow">YOUR LITTLE CELEBRATION</span><h2 id="candle-settings-title">촛불을 준비해요.</h2><p class="setup-intro">초대 링크를 만든 사람만 바꿀 수 있어요.</p><label for="edit-candle-count">케이크의 초<span>0–30개</span></label><input id="edit-candle-count" type="number" inputmode="numeric" min="0" max="30" step="1" required aria-label="초 개수 변경"><button class="setup-submit" type="submit">적용하기 <span>↗</span></button></form></dialog>
+<dialog id="table-setup" aria-labelledby="setup-title"><form id="table-setup-form" autocomplete="off"><span class="room-eyebrow">A SEAT JUST FOR YOU</span><h2 id="setup-title">누구인가요?</h2><p class="setup-intro">이 식탁에서 부를 이름을 알려주세요.<br>당신의 자리를 준비해둘게요.</p><label for="guest-names">내 이름</label><input id="guest-names" type="text" maxlength="20" autocomplete="off" required value="" aria-label="내 이름"><div id="host-candle-options"><label for="candle-count">케이크의 초<span>방을 만드는 사람만 설정 · 0–30개</span></label><div class="candle-input"><button type="button" id="fewer-candles" aria-label="초 하나 줄이기">−</button><input id="candle-count" autocomplete="off" type="number" inputmode="numeric" min="0" max="30" step="1" value="0" required aria-label="초 개수"><span>개</span><button type="button" id="more-candles" aria-label="초 하나 늘리기">+</button></div></div><button class="setup-submit" type="submit">입장하기 <span>↗</span></button></form></dialog>
+<dialog id="candle-settings" aria-labelledby="candle-settings-title"><form id="candle-settings-form" autocomplete="off"><button class="setup-close" id="close-candle-settings" type="button" aria-label="닫기">×</button><span class="room-eyebrow">YOUR LITTLE CELEBRATION</span><h2 id="candle-settings-title">촛불을 준비해요.</h2><p class="setup-intro">초대 링크를 만든 사람만 바꿀 수 있어요.</p><label for="edit-candle-count">케이크의 초<span>0–30개</span></label><input id="edit-candle-count" autocomplete="off" value="0" type="number" inputmode="numeric" min="0" max="30" step="1" required aria-label="초 개수 변경"><button class="setup-submit" type="submit">적용하기 <span>↗</span></button></form></dialog>
 <dialog id="invite-link-dialog" aria-labelledby="invite-link-title"><form method="dialog"><h2 id="invite-link-title">함께할 사람에게 보내주세요.</h2><input id="invite-link-value" readonly aria-label="초대 링크"><button class="setup-submit">닫기</button></form></dialog>`
 
 const canvas = document.querySelector<HTMLCanvasElement>('#room-canvas')!
@@ -166,7 +165,7 @@ function setCandleCount(count:number){
   const angle=i*2.3999632297,r=count===1?0:.33*Math.sqrt((i+.5)/count)
   group.position.set(Math.cos(angle)*r,.47,Math.sin(angle)*r);group.scale.setScalar(count>12?.72:count>5?.85:1)
  }
- cake.userData.candleCount=count;candle.visible=count>0;if(count===0){lit=false;candleLight.intensity=0}
+ cake.userData.candleCount=count;canvas.dataset.candles=String(count);candle.visible=count>0;if(count===0){lit=false;candleLight.intensity=0}
 }
 
 // A participant owns exactly one seat, place setting, and character; no filler guests.
@@ -242,13 +241,13 @@ const namesInput=document.querySelector<HTMLInputElement>('#guest-names')!,count
 const candleSettings=document.querySelector<HTMLDialogElement>('#candle-settings')!,editCandleInput=document.querySelector<HTMLInputElement>('#edit-candle-count')!
 const editButton=document.querySelector<HTMLButtonElement>('#edit-table')!,inviteButton=document.querySelector<HTMLButtonElement>('#copy-room-link')!
 let entered=false
-namesInput.value='';countInput.value=String(initialCandles);setCandleCount(initialCandles)
+namesInput.value='';countInput.defaultValue='0';countInput.value='0';editCandleInput.defaultValue='0';editCandleInput.value='0';setCandleCount(0)
 document.querySelector<HTMLElement>('#host-candle-options')!.hidden=!isHost;countInput.disabled=!isHost
 blowButton.disabled=true
 function applyCandles(count:number){
- setCandleCount(count);relightButton.click();countInput.value=String(count);editCandleInput.value=String(count)
+ setCandleCount(count);relightButton.click()
  caption.textContent=count===0?'초 없이 케이크를 준비했어요.':`소원을 담을 촛불 ${count}개를 준비했어요.`
- if(isHost&&!applyingRemote){broadcastRoomAction({type:'candles',value:count});history.replaceState(null,'',roomLink(count))}
+ if(isHost&&!applyingRemote){broadcastRoomAction({type:'candles',value:count});history.replaceState(null,'',roomLink())}
 }
 function validateName(){const name=namesInput.value.trim();namesInput.setCustomValidity(!name?'내 이름을 입력해주세요.':/[,，\n]/.test(name)?'자기 이름 하나만 입력해주세요.':[...name].length>20?'이름은 20자 이내로 입력해주세요.':'');return name}
 namesInput.addEventListener('input',validateName)
@@ -259,13 +258,13 @@ setupForm.addEventListener('submit',event=>{
  editButton.hidden=!isHost;inviteButton.hidden=!isHost;setupDialog.close()
 })
 setupDialog.addEventListener('cancel',event=>{if(!entered)event.preventDefault()})
-editButton.addEventListener('click',()=>{if(!isHost||!entered)return;editCandleInput.value=String(candleCount);candleSettings.showModal()})
+editButton.addEventListener('click',()=>{if(!isHost||!entered)return;editCandleInput.defaultValue='0';editCandleInput.value='0';candleSettings.showModal()})
 document.querySelector('#close-candle-settings')!.addEventListener('click',()=>candleSettings.close())
 document.querySelector<HTMLFormElement>('#candle-settings-form')!.addEventListener('submit',event=>{event.preventDefault();if(!isHost)return;const count=Number(editCandleInput.value);if(!Number.isInteger(count)||count<0||count>30)return;applyCandles(count);candleSettings.close()})
 for(const [selector,step]of [['#fewer-candles',-1],['#more-candles',1]] as const)document.querySelector(selector)!.addEventListener('click',()=>{countInput.value=String(Math.max(0,Math.min(30,(Number(countInput.value)||0)+step)))})
 inviteButton.addEventListener('click',async()=>{
  if(!isHost||!entered)return
- const link=roomLink(candleCount)
+ const link=roomLink()
  try{await navigator.clipboard.writeText(link);caption.textContent='초대 링크를 복사했어요. 함께할 사람에게 보내주세요.'}catch{const input=document.querySelector<HTMLInputElement>('#invite-link-value')!;input.value=link;document.querySelector<HTMLDialogElement>('#invite-link-dialog')!.showModal();input.select()}
 })
 function sendRoomSnapshot(){
@@ -291,6 +290,7 @@ async function connectPresence(name:string){
  }catch{status.textContent='연결하지 못했어요 · 새로고침해 주세요'}
 }
 setupDialog.showModal()
+window.addEventListener('pageshow',event=>{if(event.persisted){location.reload();return}if(!entered){namesInput.value='';countInput.value='0';editCandleInput.value='0'}})
 
 function defaultDistance(){return innerWidth<650?15:13.3}
 let yaw=.35,elevation=.47,distance=defaultDistance(),dragging=false,lastX=0,lastY=0,startX=0,startY=0,wasDragged=false,panX=0,panZ=0
