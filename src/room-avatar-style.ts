@@ -1,7 +1,7 @@
 export const ANIMAL_SPECIES = ['cat', 'rabbit', 'bear', 'dog', 'fox', 'sheep', 'penguin', 'frog', 'deer'] as const
 export type AnimalSpecies = typeof ANIMAL_SPECIES[number]
 export type AnimalStyle = { kind: 'animal'; species: AnimalSpecies; label: string; fur: string; detail: string; outfit: string; accent: string }
-export type RoomAvatarStyle = AnimalStyle | { kind: 'human'; role: 'dad' | 'daughter'; label: string; outfit: string; hair: string }
+export type RoomAvatarStyle = AnimalStyle | { kind: 'human'; role: 'dad' | 'mom' | 'daughter'; label: string; outfit: string; hair: string }
 const animals: Record<AnimalSpecies, Omit<AnimalStyle, 'kind' | 'species'>> = {
   cat: { label: '살구 고양이', fur: '#d8ae86', detail: '#f3dfc1', outfit: '#8ca59b', accent: '#c9af82' },
   rabbit: { label: '라벤더 토끼', fur: '#c2b4ce', detail: '#ead2d5', outfit: '#92a794', accent: '#e4d5b4' },
@@ -16,7 +16,8 @@ const animals: Record<AnimalSpecies, Omit<AnimalStyle, 'kind' | 'species'>> = {
 
 export function resolveRoomAvatar(name: string, participantId: string): RoomAvatarStyle {
   const normalized = name.trim().normalize('NFKC')
-  if (normalized === '아빠') return { kind: 'human', role: 'dad', label: '아빠', outfit: '#859b97', hair: '#684a38' }
+  if (normalized === '아빠') return { kind: 'human', role: 'dad', label: '아빠', outfit: '#adc5a8', hair: '#76513a' }
+  if (normalized === '엄마') return { kind: 'human', role: 'mom', label: '엄마', outfit: '#eee4cc', hair: '#3b362f' }
   if (normalized === '딸') return { kind: 'human', role: 'daughter', label: '딸', outfit: '#e4a0bb', hair: '#693e2e' }
   // The session ID is random, but every device derives the same animal for that guest.
   let hash = 2166136261

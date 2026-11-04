@@ -2,6 +2,7 @@ import './room.css'
 import * as THREE from 'three'
 import { createRoomDaylight } from './room-daylight'
 import { createRoomAvatarHead } from './room-avatar'
+import { createRoomParentAvatar } from './room-parent-avatar'
 import { createRoomAnimalAvatar } from './room-animal-avatar'
 import { resolveRoomAvatar } from './room-avatar-style'
 import type { RoomAction } from './room-presence'
@@ -176,7 +177,7 @@ const guests = new Map<string, THREE.Group>()
 const guestLabels=new Map<string,HTMLElement>()
 document.querySelector('.seat-label')!.remove()
 const skin = new THREE.MeshStandardMaterial({ color: '#f7c58d', roughness: .83 })
-const pinkShoes=new THREE.MeshStandardMaterial({color:'#d789a6',roughness:.8}),dadShoes=new THREE.MeshStandardMaterial({color:'#74675b',roughness:.85}),dadPants=new THREE.MeshStandardMaterial({color:'#aaa89b',roughness:.9})
+const pinkShoes=new THREE.MeshStandardMaterial({color:'#d789a6',roughness:.8})
 function setGuests(people: Participant[]) {
   const ids=people.map(person=>person.id)
   people.forEach(({id,name}, index) => {
@@ -195,19 +196,17 @@ function setGuests(people: Participant[]) {
         guest.userData.updateFace=createRoomAnimalAvatar(guest,appearance,outfit)
       }else{
         const guestHair=new THREE.MeshStandardMaterial({color:appearance.hair,roughness:.65});guest.userData.hair=guestHair
-        if(appearance.role==='dad'){
-          const body=mesh(guest,new THREE.CapsuleGeometry(.27,.35,6,16),porcelain,0,1.21,0);body.scale.z=.8
-          const vest=sphere(guest,.29,outfit,0,1.17,.08);vest.scale.set(1,1.35,.6)
-          for(const x of [-.075,.075]){const collar=box(guest,.13,.06,.08,porcelain,x,1.5,.16);collar.rotation.z=x>0?.3:-.3}
+        if(appearance.role==='dad'||appearance.role==='mom'){
+          guest.userData.updateFace=createRoomParentAvatar(guest,appearance.role,outfit,guestHair)
         }else{
           mesh(guest,new THREE.CylinderGeometry(.22,.34,.62,32),outfit,0,1.2,0)
           mesh(guest,new THREE.CylinderGeometry(.33,.37,.10,32),porcelain,0,.86,0)
           for(let i=0;i<14;i++){const a=i/14*Math.PI*2;const scallop=sphere(guest,.047,porcelain,Math.cos(a)*.331,.842,Math.sin(a)*.331);scallop.scale.y=.65}
           for(let i=0;i<12;i++){const a=i/12*Math.PI*2;sphere(guest,.035,porcelain,Math.cos(a)*.14,1.525,Math.sin(a)*.14)}
+          guest.userData.updateFace=createRoomAvatarHead(guest,guestHair,'daughter')
+          for(const x of [-.33,.33]){const arm=mesh(guest,new THREE.CapsuleGeometry(.095,.30,4,10),outfit,x,1.3,.19);arm.rotation.x=-.8;const cuff=mesh(guest,new THREE.CylinderGeometry(.103,.103,.07,12),porcelain,x,1.18,.36);cuff.rotation.x=-.8;sphere(guest,.105,skin,x,1.13,.41)}
+          for(const x of [-.16,.16]){const stocking=mesh(guest,new THREE.CapsuleGeometry(.073,.29,4,10),porcelain,x,.66,.22);stocking.scale.z=.9;const shoe=sphere(guest,.12,pinkShoes,x,.43,.3);shoe.scale.set(.8,.6,1.35)}
         }
-        guest.userData.updateFace=createRoomAvatarHead(guest,guestHair,appearance.role)
-        for(const x of [-.33,.33]){const arm=mesh(guest,new THREE.CapsuleGeometry(.095,.30,4,10),appearance.role==='dad'?porcelain:outfit,x,1.3,.19);arm.rotation.x=-.8;const cuff=mesh(guest,new THREE.CylinderGeometry(.103,.103,.07,12),porcelain,x,1.18,.36);cuff.rotation.x=-.8;sphere(guest,.105,skin,x,1.13,.41)}
-        for(const x of [-.16,.16]){const stocking=mesh(guest,new THREE.CapsuleGeometry(.073,.29,4,10),appearance.role==='dad'?dadPants:porcelain,x,.66,.22);stocking.scale.z=.9;const shoe=sphere(guest,.12,appearance.role==='dad'?dadShoes:pinkShoes,x,.43,.3);shoe.scale.set(.8,.6,1.35)}
       }
       mesh(guest,new THREE.CylinderGeometry(.24,.24,.025,32),porcelain,0,1.5,.88)
       mesh(guest,new THREE.CylinderGeometry(.085,.075,.18,20),porcelain,.37,1.59,.82)
@@ -217,7 +216,7 @@ function setGuests(people: Participant[]) {
     const angle = index / Math.max(ids.length, 1) * Math.PI * 2
     guest.position.set(Math.sin(angle) * 2.25, 0, -Math.cos(angle) * 2.25); guest.rotation.y = -angle
   })
-  for (const [id, guest] of guests) if (!ids.includes(id)) { scene.remove(guest); guest.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose() }); for(const material of guest.userData.avatarMaterials||[])material.dispose();(guest.userData.outfit as THREE.Material).dispose();(guest.userData.hair as THREE.Material|undefined)?.dispose();guestLabels.get(id)?.remove();guestLabels.delete(id);guests.delete(id) }
+  for (const [id, guest] of guests) if (!ids.includes(id)) { scene.remove(guest); guest.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose() }); for(const texture of guest.userData.avatarTextures||[])texture.dispose();for(const material of guest.userData.avatarMaterials||[])material.dispose();(guest.userData.outfit as THREE.Material).dispose();(guest.userData.hair as THREE.Material|undefined)?.dispose();guestLabels.get(id)?.remove();guestLabels.delete(id);guests.delete(id) }
   document.querySelector('#guest-count')!.textContent = String(ids.length)
 }
 setGuests([])
