@@ -65,9 +65,9 @@ export async function createRoomPresence(options: Options) {
     if(message.kind==='hello'&&options.self.isHost)options.onStateRequest?.()
     if (message.kind === 'action' && message.action) {
       const action = message.action
-      if (action.type === 'candles' && (!message.participant.isHost || !Number.isInteger(action.value) || Number(action.value) < 1 || Number(action.value) > 30)) return
+      if (action.type === 'candles' && (!message.participant.isHost || !Number.isInteger(action.value) || Number(action.value) < 0 || Number(action.value) > 30)) return
       if ((action.type === 'lamp' || action.type === 'lights') && typeof action.value !== 'boolean') return
-      if(action.type==='state'&&(!message.participant.isHost||!action.state||!Number.isInteger(action.state.candles)||action.state.candles<1||action.state.candles>30||typeof action.state.lit!=='boolean'||typeof action.state.lamp!=='boolean'||typeof action.state.lights!=='boolean'))return
+      if(action.type==='state'&&(!message.participant.isHost||!action.state||!Number.isInteger(action.state.candles)||action.state.candles<0||action.state.candles>30||typeof action.state.lit!=='boolean'||typeof action.state.lamp!=='boolean'||typeof action.state.lights!=='boolean'))return
       if (['blow', 'relight', 'lamp', 'lights', 'candles','state'].includes(action.type)) options.onAction(action, message.participant)
     }
   }
