@@ -12,7 +12,9 @@ function broadcastRoomAction(action:RoomAction){if(!applyingRemote)void presence
 const roomParams=new URLSearchParams(location.hash.slice(1))
 const existingRoomId=roomParams.get('room'),roomId=existingRoomId||crypto.randomUUID()
 let isHost=!existingRoomId,initialCandles=Number(roomParams.get('candles'))||0
-try{if(existingRoomId)isHost=localStorage.getItem(`little-table-owner:${roomId}`)==='true';if(isHost){localStorage.setItem(`little-table-owner:${roomId}`,'true');const stored=localStorage.getItem(`little-table-candles:${roomId}`);if(stored!==null){const saved=Number(stored);if(Number.isInteger(saved)&&saved>=0&&saved<=30)initialCandles=saved}}}catch{/* A newly created room still works without storage. */}
+try{if(existingRoomId)isHost=localStorage.getItem(`little-table-owner:${roomId}`)==='true';if(isHost){localStorage.setItem(`little-table-owner:${roomId}`,'true');localStorage.removeItem(`little-table-candles:${roomId}`)}}catch{/* A newly created room still works without storage. */}
+// Creator entry always starts empty; stale URLs and old saved cake settings are not defaults.
+if(isHost)initialCandles=0
 initialCandles=Number.isInteger(initialCandles)&&initialCandles>=0&&initialCandles<=30?initialCandles:0
 function roomLink(count:number){const url=new URL(location.href);url.hash=new URLSearchParams({room:roomId,candles:String(count)}).toString();return url.href}
 if(isHost)history.replaceState(null,'',roomLink(initialCandles))
@@ -246,7 +248,7 @@ blowButton.disabled=true
 function applyCandles(count:number){
  setCandleCount(count);relightButton.click();countInput.value=String(count);editCandleInput.value=String(count)
  caption.textContent=count===0?'초 없이 케이크를 준비했어요.':`소원을 담을 촛불 ${count}개를 준비했어요.`
- if(isHost&&!applyingRemote){broadcastRoomAction({type:'candles',value:count});history.replaceState(null,'',roomLink(count));try{localStorage.setItem(`little-table-candles:${roomId}`,String(count))}catch{/* Saving is optional. */}}
+ if(isHost&&!applyingRemote){broadcastRoomAction({type:'candles',value:count});history.replaceState(null,'',roomLink(count))}
 }
 function validateName(){const name=namesInput.value.trim();namesInput.setCustomValidity(!name?'내 이름을 입력해주세요.':/[,，\n]/.test(name)?'자기 이름 하나만 입력해주세요.':[...name].length>20?'이름은 20자 이내로 입력해주세요.':'');return name}
 namesInput.addEventListener('input',validateName)
