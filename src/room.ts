@@ -5,6 +5,7 @@ import { createRoomAvatarHead } from './room-avatar'
 import { createRoomParentAvatar } from './room-parent-avatar'
 import { createRoomAnimalAvatar } from './room-animal-avatar'
 import { resolveRoomAvatar } from './room-avatar-style'
+import { createRoomMovement } from './room-movement'
 import type { RoomAction } from './room-presence'
 
 // Room ownership is kept in this browser; invitees receive the room ID and cake setting.
@@ -36,7 +37,7 @@ document.querySelector('#app')!.innerHTML = `
 
 const canvas = document.querySelector<HTMLCanvasElement>('#room-canvas')!
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5, Math.sqrt(2400000 / (innerWidth * innerHeight)))); renderer.setSize(innerWidth, innerHeight)
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5, Math.sqrt(2400000 / (innerWidth * innerHeight)))); renderer.setSize(innerWidth, innerHeight, false)
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.25
 const scene = new THREE.Scene(); scene.background = new THREE.Color('#e8ddcc'); scene.fog = new THREE.Fog('#e8ddcc', 24, 52)
@@ -173,7 +174,9 @@ function setCandleCount(count:number){
 
 // A participant owns exactly one seat, place setting, and character; no filler guests.
 type Participant={id:string;name:string}
+const movement = createRoomMovement(localParticipantId, motion => broadcastRoomAction({type:'move',motion}), () => yaw)
 const guests = new Map<string, THREE.Group>()
+const guestSeats = new Map<string, THREE.Group>()
 const guestLabels=new Map<string,HTMLElement>()
 document.querySelector('.seat-label')!.remove()
 const skin = new THREE.MeshStandardMaterial({ color: '#f7c58d', roughness: .83 })
@@ -185,13 +188,14 @@ function setGuests(people: Participant[]) {
     let guest = guests.get(id)
     if (!guest) {
       guest = new THREE.Group(); guests.set(id, guest); scene.add(guest)
+      const seat = new THREE.Group(); guestSeats.set(id, seat); scene.add(seat)
       const outfit=new THREE.MeshStandardMaterial({color:appearance.outfit,roughness:.84})
       guest.userData.outfit=outfit
-      const label=document.createElement('div');label.className='seat-label';const badge=document.createElement('span'),text=document.createElement('b');label.append(badge,text);document.querySelector('#app')!.append(label);guestLabels.set(id,label)
-      mesh(guest, new THREE.CylinderGeometry(.46, .46, .12, 32), oak, 0, .75, 0)
-      box(guest, .87, .65, .12, oak, 0, 1.15, -.38)
-      box(guest, .73, .42, .045, sage, 0, 1.17, -.3)
-      for (const x of [-.3, .3]) for (const z of [-.28, .28]) box(guest, .065, .75, .065, oak, x, .36, z)
+      const label=document.createElement('div');label.className='seat-label';label.dataset.participant=id;const badge=document.createElement('span'),text=document.createElement('b');label.append(badge,text);document.querySelector('#app')!.append(label);guestLabels.set(id,label)
+      mesh(seat, new THREE.CylinderGeometry(.46, .46, .12, 32), oak, 0, .75, 0)
+      box(seat, .87, .65, .12, oak, 0, 1.15, -.38)
+      box(seat, .73, .42, .045, sage, 0, 1.17, -.3)
+      for (const x of [-.3, .3]) for (const z of [-.28, .28]) box(seat, .065, .75, .065, oak, x, .36, z)
       if(appearance.kind==='animal'){
         guest.userData.updateFace=createRoomAnimalAvatar(guest,appearance,outfit)
       }else{
@@ -208,15 +212,16 @@ function setGuests(people: Participant[]) {
           for(const x of [-.16,.16]){const stocking=mesh(guest,new THREE.CapsuleGeometry(.073,.29,4,10),porcelain,x,.66,.22);stocking.scale.z=.9;const shoe=sphere(guest,.12,pinkShoes,x,.43,.3);shoe.scale.set(.8,.6,1.35)}
         }
       }
-      mesh(guest,new THREE.CylinderGeometry(.24,.24,.025,32),porcelain,0,1.5,.88)
-      mesh(guest,new THREE.CylinderGeometry(.085,.075,.18,20),porcelain,.37,1.59,.82)
+      mesh(seat,new THREE.CylinderGeometry(.24,.24,.025,32),porcelain,0,1.5,1.28)
+      mesh(seat,new THREE.CylinderGeometry(.085,.075,.18,20),porcelain,.37,1.59,1.22)
+      movement.add(id,guest,seat,label)
     }
     guest.userData.name=name
     const label=guestLabels.get(id)!;label.querySelector('span')!.textContent=id===localParticipantId?'나':name.slice(0,1);label.querySelector('b')!.textContent=name;label.dataset.avatar=appearance.kind;label.dataset.species=appearance.kind==='animal'?appearance.species:appearance.role;label.setAttribute('aria-label',`${name}, ${appearance.label} 캐릭터`)
     const angle = index / Math.max(ids.length, 1) * Math.PI * 2
-    guest.position.set(Math.sin(angle) * 2.25, 0, -Math.cos(angle) * 2.25); guest.rotation.y = -angle
+    const seat=guestSeats.get(id)!;seat.position.set(Math.sin(angle) * 2.65, 0, -Math.cos(angle) * 2.65); seat.rotation.y = -angle
   })
-  for (const [id, guest] of guests) if (!ids.includes(id)) { scene.remove(guest); guest.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose() }); for(const texture of guest.userData.avatarTextures||[])texture.dispose();for(const material of guest.userData.avatarMaterials||[])material.dispose();(guest.userData.outfit as THREE.Material).dispose();(guest.userData.hair as THREE.Material|undefined)?.dispose();guestLabels.get(id)?.remove();guestLabels.delete(id);guests.delete(id) }
+  for (const [id, guest] of guests) if (!ids.includes(id)) { const seat=guestSeats.get(id)!;scene.remove(seat);seat.traverse(object=>{if(object instanceof THREE.Mesh)object.geometry.dispose()});guestSeats.delete(id);movement.remove(id);scene.remove(guest); guest.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose() }); for(const texture of guest.userData.avatarTextures||[])texture.dispose();for(const material of guest.userData.avatarMaterials||[])material.dispose();(guest.userData.outfit as THREE.Material).dispose();(guest.userData.hair as THREE.Material|undefined)?.dispose();guestLabels.get(id)?.remove();guestLabels.delete(id);guests.delete(id) }
   document.querySelector('#guest-count')!.textContent = String(ids.length)
 }
 setGuests([])
@@ -299,6 +304,7 @@ shareInviteButton.addEventListener('click',async()=>{
 })
 
 function sendRoomSnapshot(){
+ movement.publish()
  if(!isHost||!presence)return
  void presence.sendAction({type:'state',state:{candles:candleCount,lit:lit&&!blowing,lamp:lampOn,lights:roomLightsOn}})
 }
@@ -309,7 +315,8 @@ async function connectPresence(name:string){
   presence=await createRoomPresence({roomId,self:{id:localParticipantId,name,joinedAt:Date.now(),isHost},onParticipants:setGuests,onStatus:connected=>{status.textContent=connected?'실시간 연결됨':'연결 재시도 중…';document.querySelector<HTMLElement>('.presence')!.dataset.connection=connected?'online':'connecting'},onStateRequest:sendRoomSnapshot,onAction:(action,actor)=>{
    applyingRemote=true;remoteActorId=actor.id
    try{
-    if(action.type==='state'&&action.state){const state=action.state;if(state.candles!==candleCount)applyCandles(state.candles);if(state.lit&&!lit)relightButton.click();if(!state.lit&&lit&&!blowing)blowButton.click();if(state.lamp!==lampOn)toggleTableLamp();if(state.lights!==roomLightsOn)roomLightSwitch.click()}
+    if(action.type==='move'&&action.motion)movement.receive(actor.id,action.motion)
+    else if(action.type==='state'&&action.state){const state=action.state;if(state.candles!==candleCount)applyCandles(state.candles);if(state.lit&&!lit)relightButton.click();if(!state.lit&&lit&&!blowing)blowButton.click();if(state.lamp!==lampOn)toggleTableLamp();if(state.lights!==roomLightsOn)roomLightSwitch.click()}
     else if(action.type==='blow')blowButton.click()
     else if(action.type==='relight')relightButton.click()
     else if(action.type==='candles'&&Number(action.value)!==candleCount)applyCandles(Number(action.value))
@@ -354,16 +361,18 @@ let viewportWidth=0,viewportHeight=0,portraitLayout=innerWidth<650
 function resizeRoom(){
  const portrait=innerWidth<650;if(portrait!==portraitLayout){portraitLayout=portrait;resetRoomView()}
  viewportWidth=innerWidth;viewportHeight=innerHeight;camera.aspect=viewportWidth/viewportHeight;camera.fov=portrait||viewportHeight<500?46:38;camera.updateProjectionMatrix()
- renderer.setPixelRatio(Math.min(devicePixelRatio,1.5,Math.sqrt(2400000/(viewportWidth*viewportHeight))));renderer.setSize(viewportWidth,viewportHeight)
+ renderer.setPixelRatio(Math.min(devicePixelRatio,1.5,Math.sqrt(2400000/(viewportWidth*viewportHeight))));renderer.setSize(viewportWidth,viewportHeight,false)
  const hint=document.querySelector('.room-footer>span:last-child')!;hint.textContent=portrait?'한 손가락으로 둘러보기 · 두 손가락으로 확대 / 이동':'드래그로 둘러보기 · 휠로 가까이 보기'
 }
 resizeRoom()
 const focus = new THREE.Vector3(), projected = new THREE.Vector3(),labelOffset=new THREE.Vector3(0,3.0,0)
 function animate(now: number) {
-  requestAnimationFrame(animate);if(viewportWidth!==innerWidth||viewportHeight!==innerHeight)resizeRoom(); daylight.update(now); const time = now / 1000
+  requestAnimationFrame(animate);if(viewportWidth!==innerWidth||viewportHeight!==innerHeight)resizeRoom(); daylight.update(now); movement.update(now); const time = now / 1000
   const mobile = innerWidth < 650, screenOffset = mobile ? 0 : -1.25
-  focus.set(screenOffset+panX,1.45,panZ)
-  camera.position.set(focus.x + Math.sin(yaw) * Math.cos(elevation) * distance, focus.y + Math.sin(elevation) * distance, Math.cos(yaw) * Math.cos(elevation) * distance)
+  const walking=document.body.classList.contains('room-walking'),self=guests.get(localParticipantId)
+  const followX=walking&&self?self.position.x:screenOffset,followZ=walking&&self?self.position.z:0
+  focus.lerp(labelOffset.set(followX+panX,1.45,followZ+panZ),.09)
+  camera.position.set(focus.x + Math.sin(yaw) * Math.cos(elevation) * distance, focus.y + Math.sin(elevation) * distance, focus.z + Math.cos(yaw) * Math.cos(elevation) * distance)
   camera.lookAt(focus)
   cakeCandles.forEach((item,i)=>{item.flame.rotation.z=Math.sin(time*7+i)*.08;item.flame.scale.y=1+Math.sin(time*11+i)*.08});candleLight.intensity=lit?Math.min(3,1.4*Math.sqrt(candleCount))+Math.sin(time*9)*.15:0
   if (blowing) {
@@ -373,7 +382,7 @@ function animate(now: number) {
 
   const smokeAge = time - smokeStarted
   smoke.forEach((puff, i) => { const t = smokeAge - i * .065; puff.visible = candleCount>0 && t > 0 && t < 2.3; if (puff.visible) { const source=cakeCandles[i%cakeCandles.length].group;puff.position.set(source.position.x+Math.sin(time*2+i)*t*.06,source.position.y+source.scale.y*.57+t*.27,source.position.z); puff.scale.setScalar(1 + t * 1.7); (puff.material as THREE.MeshBasicMaterial).opacity = .18 * (1 - t / 2.3) } })
-  for(const [id,guest] of guests){guest.userData.updateFace?.(time,blowing&&id===blowingParticipantId);guest.position.y=Math.sin(time*1.4)*.012;projected.copy(guest.position).add(labelOffset.set(0,guest.userData.labelHeight||3,0)).project(camera);const label=guestLabels.get(id)!;label.style.left=`${(projected.x*.5+.5)*innerWidth}px`;label.style.top=`${(-projected.y*.5+.5)*innerHeight}px`;label.style.visibility=projected.z<1?'visible':'hidden'}
+  for(const [id,guest] of guests){guest.userData.updateFace?.(time,blowing&&id===blowingParticipantId);projected.copy(guest.position).add(labelOffset.set(0,guest.userData.labelHeight||3,0)).project(camera);const label=guestLabels.get(id)!;label.style.left=`${(projected.x*.5+.5)*innerWidth}px`;label.style.top=`${(-projected.y*.5+.5)*innerHeight}px`;label.style.visibility=projected.z<1?'visible':'hidden'}
   vase.getWorldPosition(lampScreenPosition);lampScreenPosition.y+=1.03;lampScreenPosition.project(camera);lampSwitch.style.left=`${(lampScreenPosition.x*.5+.5)*innerWidth}px`;lampSwitch.style.top=`${(-lampScreenPosition.y*.5+.5)*innerHeight}px`;lampSwitch.style.visibility=lampScreenPosition.z<1?'visible':'hidden'
   renderer.render(scene, camera)
 }

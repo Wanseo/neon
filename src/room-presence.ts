@@ -2,7 +2,8 @@ import mqtt from 'mqtt'
 import type { MqttClient } from 'mqtt'
 
 export type RoomParticipant = { id: string; name: string; joinedAt: number; isHost: boolean }
-export type RoomAction = { type: 'blow' | 'relight' | 'lamp' | 'lights' | 'candles' | 'state'; value?: number | boolean; state?: {candles:number;lit:boolean;lamp:boolean;lights:boolean} }
+export type RoomMotion = { x: number; z: number; yaw: number; standing: boolean; moving: boolean; seq: number }
+export type RoomAction = { motion?: RoomMotion; type: 'move' | 'blow' | 'relight' | 'lamp' | 'lights' | 'candles' | 'state'; value?: number | boolean; state?: {candles:number;lit:boolean;lamp:boolean;lights:boolean} }
 type Envelope = { v: 1; eventId: string; kind: 'hello' | 'offline' | 'bye' | 'action'; participant: RoomParticipant; action?: RoomAction; sentAt: number }
 type Options = { roomId: string; self: RoomParticipant; onParticipants: (people: RoomParticipant[]) => void; onStatus: (connected: boolean) => void; onAction: (action: RoomAction, actor: RoomParticipant) => void; onStateRequest?: () => void }
 const relays = [{url:'wss://broker.emqx.io:8084/mqtt',username:undefined,password:undefined},{url:'wss://public.cloud.shiftr.io',username:'public',password:'public'}]
@@ -62,14 +63,15 @@ export async function createRoomPresence(options: Options) {
     if (!existing) { roster(); void send('hello', undefined, relay) }
     if (seen.has(message.eventId)) return
     seen.set(message.eventId, Date.now())
-    if(message.kind==='hello'&&options.self.isHost)options.onStateRequest?.()
+    if(message.kind==='hello')options.onStateRequest?.()
     if (message.kind === 'action' && message.action) {
       const action = message.action
+      if (action.type === 'move') { const m = action.motion; if (!m || ![m.x,m.z,m.yaw].every(Number.isFinite) || Math.abs(m.x)>6.5 || m.z < -4.2 || m.z>5.1 || Math.abs(m.yaw)>Math.PI*2 || typeof m.standing!=='boolean' || typeof m.moving!=='boolean' || !Number.isSafeInteger(m.seq) || m.seq<0) return }
       if(action.type==='state'){const latestCreator=[options.self,...Array.from(people.values(),entry=>entry.participant)].filter(person=>person.isHost).sort((a,b)=>b.joinedAt-a.joinedAt||b.id.localeCompare(a.id))[0];if(latestCreator&&latestCreator.id!==message.participant.id)return}
       if (action.type === 'candles' && (!message.participant.isHost || !Number.isInteger(action.value) || Number(action.value) < 0 || Number(action.value) > 30)) return
       if ((action.type === 'lamp' || action.type === 'lights') && typeof action.value !== 'boolean') return
       if(action.type==='state'&&(!message.participant.isHost||!action.state||!Number.isInteger(action.state.candles)||action.state.candles<0||action.state.candles>30||typeof action.state.lit!=='boolean'||typeof action.state.lamp!=='boolean'||typeof action.state.lights!=='boolean'))return
-      if (['blow', 'relight', 'lamp', 'lights', 'candles','state'].includes(action.type)) options.onAction(action, message.participant)
+      if (['move', 'blow', 'relight', 'lamp', 'lights', 'candles','state'].includes(action.type)) options.onAction(action, message.participant)
     }
   }
   const willPayload = await seal(envelope('offline'))
