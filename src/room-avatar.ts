@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 
 // Soft toy-like proportions, a straight bob, and a large pink ribbon.
-export function createRoomAvatarHead(parent: THREE.Group, hair: THREE.MeshStandardMaterial) {
+export function createRoomAvatarHead(parent: THREE.Group, hair: THREE.MeshStandardMaterial,role:'dad'|'daughter'='daughter') {
   const head = new THREE.Group(); head.position.set(0, 2.01, 0); parent.add(head)
   const skin = new THREE.MeshStandardMaterial({ color: '#f7c58d', roughness: .85 })
   const white = new THREE.MeshStandardMaterial({ color: '#fff5dc', roughness: .8 })
@@ -26,11 +26,11 @@ export function createRoomAvatarHead(parent: THREE.Group, hair: THREE.MeshStanda
     }
     geometry.deleteAttribute('normal');geometry.deleteAttribute('uv');const smoothGeometry=mergeVertices(geometry,1e-4);smoothGeometry.computeVertexNormals();geometry.dispose();const object = new THREE.Mesh(smoothGeometry, material); object.position.set(x, y, z); object.castShadow = true; group.add(object); return object
   }
-  const backHair=ellipsoid(head,hair,[0,.015,-.145],[.465,.54,.37]);backHair.castShadow=true
+  const backHair=ellipsoid(head,hair,role==='dad'?[0,.22,-.10]:[0,.015,-.145],role==='dad'?[.445,.31,.35]:[.465,.54,.37]);backHair.castShadow=true
   roundedBox(head, .81, .77, .61, .19, skin, 0, -.025, .015)
-  roundedBox(head, .78, .29, .17, .055, hair, 0, .254, .276)
+  roundedBox(head,.78,role==='dad'?.21:.29,.17,.055,hair,0,role==='dad'?.30:.254,.276)
   for (const side of [-1, 1]) {
-    const sideHair=ellipsoid(head,hair,[side*.398,-.045,.025],[.092,.45,.18]);sideHair.rotation.z=-side*.035;sideHair.castShadow=true
+    const sideHair=ellipsoid(head,hair,role==='dad'?[side*.385,.13,-.02]:[side*.398,-.045,.025],role==='dad'?[.075,.19,.13]:[.092,.45,.18]);sideHair.rotation.z=-side*.035;sideHair.castShadow=true
     ellipsoid(head, skin, [side * .405, -.07, .015], [.045, .085, .055])
     ellipsoid(head, cheekMaterial, [side * .255, -.15, .322], [.085, .027, .006])
   }
@@ -50,6 +50,7 @@ export function createRoomAvatarHead(parent: THREE.Group, hair: THREE.MeshStanda
   ellipsoid(head, noseMaterial, [0, -.088, .344], [.055, .027, .023])
   const smilePath = new THREE.CatmullRomCurve3([new THREE.Vector3(-.097, -.198, .327), new THREE.Vector3(-.035, -.211, .334), new THREE.Vector3(.035, -.211, .334), new THREE.Vector3(.097, -.185, .327)])
   const smile = new THREE.Mesh(new THREE.TubeGeometry(smilePath, 18, .009, 6, false), smileMaterial); head.add(smile)
+  if(role==='daughter'){
   // Rounded triangular fabric loops create the silhouette of the reference bow.
   const bow = new THREE.Group(); bow.position.set(0, .58, -.015); head.add(bow)
   for (const side of [-1, 1]) {
@@ -58,6 +59,8 @@ export function createRoomAvatarHead(parent: THREE.Group, hair: THREE.MeshStanda
     const loop = new THREE.Mesh(geometry, ribbonMaterial); loop.castShadow = true; bow.add(loop)
   }
   ellipsoid(bow, ribbonMaterial, [0, -.015, .065], [.085, .085, .07])
+  }
+  parent.userData.labelHeight=role==='dad'?2.8:3.0
   const neck = new THREE.Mesh(new THREE.CylinderGeometry(.095, .10, .17, 16), skin); neck.position.set(0, 1.61, 0); parent.add(neck)
   return (time: number, blowing: boolean) => {
     const blink = Math.sin(time * .83) > .996

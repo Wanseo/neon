@@ -2,6 +2,8 @@ import './room.css'
 import * as THREE from 'three'
 import { createRoomDaylight } from './room-daylight'
 import { createRoomAvatarHead } from './room-avatar'
+import { createRoomAnimalAvatar } from './room-animal-avatar'
+import { resolveRoomAvatar } from './room-avatar-style'
 import type { RoomAction } from './room-presence'
 
 // Room ownership is kept in this browser; invitees receive the room ID and cake setting.
@@ -173,38 +175,49 @@ type Participant={id:string;name:string}
 const guests = new Map<string, THREE.Group>()
 const guestLabels=new Map<string,HTMLElement>()
 document.querySelector('.seat-label')!.remove()
-function namePalette(){return{outfit:'#e4a0bb',hair:'#693e2e'}}
 const skin = new THREE.MeshStandardMaterial({ color: '#f7c58d', roughness: .83 })
-const pinkShoes = new THREE.MeshStandardMaterial({color:'#d789a6',roughness:.8})
+const pinkShoes=new THREE.MeshStandardMaterial({color:'#d789a6',roughness:.8}),dadShoes=new THREE.MeshStandardMaterial({color:'#74675b',roughness:.85}),dadPants=new THREE.MeshStandardMaterial({color:'#aaa89b',roughness:.9})
 function setGuests(people: Participant[]) {
   const ids=people.map(person=>person.id)
   people.forEach(({id,name}, index) => {
+    const appearance=resolveRoomAvatar(name,id)
     let guest = guests.get(id)
     if (!guest) {
       guest = new THREE.Group(); guests.set(id, guest); scene.add(guest)
-      const colors=namePalette(),outfit=new THREE.MeshStandardMaterial({color:colors.outfit,roughness:.84}),guestHair=new THREE.MeshStandardMaterial({color:colors.hair,roughness:.48})
-      guest.userData.outfit=outfit;guest.userData.hair=guestHair
+      const outfit=new THREE.MeshStandardMaterial({color:appearance.outfit,roughness:.84})
+      guest.userData.outfit=outfit
       const label=document.createElement('div');label.className='seat-label';const badge=document.createElement('span'),text=document.createElement('b');label.append(badge,text);document.querySelector('#app')!.append(label);guestLabels.set(id,label)
       mesh(guest, new THREE.CylinderGeometry(.46, .46, .12, 32), oak, 0, .75, 0)
       box(guest, .87, .65, .12, oak, 0, 1.15, -.38)
       box(guest, .73, .42, .045, sage, 0, 1.17, -.3)
       for (const x of [-.3, .3]) for (const z of [-.28, .28]) box(guest, .065, .75, .065, oak, x, .36, z)
-      mesh(guest,new THREE.CylinderGeometry(.22,.34,.62,32),outfit,0,1.2,0)
-      mesh(guest,new THREE.CylinderGeometry(.33,.37,.10,32),porcelain,0,.86,0)
-      for(let i=0;i<14;i++){const a=i/14*Math.PI*2;const scallop=sphere(guest,.047,porcelain,Math.cos(a)*.331,.842,Math.sin(a)*.331);scallop.scale.y=.65}
-      for(let i=0;i<12;i++){const a=i/12*Math.PI*2;sphere(guest,.035,porcelain,Math.cos(a)*.14,1.525,Math.sin(a)*.14)}
-      guest.userData.updateFace=createRoomAvatarHead(guest,guestHair)
-      for(const x of [-.33,.33]){const arm=mesh(guest,new THREE.CapsuleGeometry(.095,.30,4,10),outfit,x,1.3,.19);arm.rotation.x=-.8;const cuff=mesh(guest,new THREE.CylinderGeometry(.103,.103,.07,12),porcelain,x,1.18,.36);cuff.rotation.x=-.8;sphere(guest,.105,skin,x,1.13,.41)}
+      if(appearance.kind==='animal'){
+        guest.userData.updateFace=createRoomAnimalAvatar(guest,appearance,outfit)
+      }else{
+        const guestHair=new THREE.MeshStandardMaterial({color:appearance.hair,roughness:.65});guest.userData.hair=guestHair
+        if(appearance.role==='dad'){
+          const body=mesh(guest,new THREE.CapsuleGeometry(.27,.35,6,16),porcelain,0,1.21,0);body.scale.z=.8
+          const vest=sphere(guest,.29,outfit,0,1.17,.08);vest.scale.set(1,1.35,.6)
+          for(const x of [-.075,.075]){const collar=box(guest,.13,.06,.08,porcelain,x,1.5,.16);collar.rotation.z=x>0?.3:-.3}
+        }else{
+          mesh(guest,new THREE.CylinderGeometry(.22,.34,.62,32),outfit,0,1.2,0)
+          mesh(guest,new THREE.CylinderGeometry(.33,.37,.10,32),porcelain,0,.86,0)
+          for(let i=0;i<14;i++){const a=i/14*Math.PI*2;const scallop=sphere(guest,.047,porcelain,Math.cos(a)*.331,.842,Math.sin(a)*.331);scallop.scale.y=.65}
+          for(let i=0;i<12;i++){const a=i/12*Math.PI*2;sphere(guest,.035,porcelain,Math.cos(a)*.14,1.525,Math.sin(a)*.14)}
+        }
+        guest.userData.updateFace=createRoomAvatarHead(guest,guestHair,appearance.role)
+        for(const x of [-.33,.33]){const arm=mesh(guest,new THREE.CapsuleGeometry(.095,.30,4,10),appearance.role==='dad'?porcelain:outfit,x,1.3,.19);arm.rotation.x=-.8;const cuff=mesh(guest,new THREE.CylinderGeometry(.103,.103,.07,12),porcelain,x,1.18,.36);cuff.rotation.x=-.8;sphere(guest,.105,skin,x,1.13,.41)}
+        for(const x of [-.16,.16]){const stocking=mesh(guest,new THREE.CapsuleGeometry(.073,.29,4,10),appearance.role==='dad'?dadPants:porcelain,x,.66,.22);stocking.scale.z=.9;const shoe=sphere(guest,.12,appearance.role==='dad'?dadShoes:pinkShoes,x,.43,.3);shoe.scale.set(.8,.6,1.35)}
+      }
       mesh(guest,new THREE.CylinderGeometry(.24,.24,.025,32),porcelain,0,1.5,.88)
       mesh(guest,new THREE.CylinderGeometry(.085,.075,.18,20),porcelain,.37,1.59,.82)
-      for (const x of [-.16, .16]) { const stocking=mesh(guest,new THREE.CapsuleGeometry(.073,.29,4,10),porcelain,x,.66,.22);stocking.scale.z=.9;const shoe=sphere(guest,.12,pinkShoes,x,.43,.3);shoe.scale.set(.8,.6,1.35) }
     }
-    const colors=namePalette();(guest.userData.outfit as THREE.MeshStandardMaterial).color.set(colors.outfit);(guest.userData.hair as THREE.MeshStandardMaterial).color.set(colors.hair);guest.userData.name=name
-    const label=guestLabels.get(id)!;label.querySelector('span')!.textContent=id===localParticipantId?'나':name.slice(0,1);label.querySelector('b')!.textContent=name
+    guest.userData.name=name
+    const label=guestLabels.get(id)!;label.querySelector('span')!.textContent=id===localParticipantId?'나':name.slice(0,1);label.querySelector('b')!.textContent=name;label.dataset.avatar=appearance.kind;label.dataset.species=appearance.kind==='animal'?appearance.species:appearance.role;label.setAttribute('aria-label',`${name}, ${appearance.label} 캐릭터`)
     const angle = index / Math.max(ids.length, 1) * Math.PI * 2
     guest.position.set(Math.sin(angle) * 2.25, 0, -Math.cos(angle) * 2.25); guest.rotation.y = -angle
   })
-  for (const [id, guest] of guests) if (!ids.includes(id)) { scene.remove(guest); guest.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose() }); for(const material of guest.userData.avatarMaterials||[])material.dispose();(guest.userData.outfit as THREE.Material).dispose();(guest.userData.hair as THREE.Material).dispose();guestLabels.get(id)?.remove();guestLabels.delete(id);guests.delete(id) }
+  for (const [id, guest] of guests) if (!ids.includes(id)) { scene.remove(guest); guest.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose() }); for(const material of guest.userData.avatarMaterials||[])material.dispose();(guest.userData.outfit as THREE.Material).dispose();(guest.userData.hair as THREE.Material|undefined)?.dispose();guestLabels.get(id)?.remove();guestLabels.delete(id);guests.delete(id) }
   document.querySelector('#guest-count')!.textContent = String(ids.length)
 }
 setGuests([])
@@ -361,7 +374,7 @@ function animate(now: number) {
 
   const smokeAge = time - smokeStarted
   smoke.forEach((puff, i) => { const t = smokeAge - i * .065; puff.visible = candleCount>0 && t > 0 && t < 2.3; if (puff.visible) { const source=cakeCandles[i%cakeCandles.length].group;puff.position.set(source.position.x+Math.sin(time*2+i)*t*.06,source.position.y+source.scale.y*.57+t*.27,source.position.z); puff.scale.setScalar(1 + t * 1.7); (puff.material as THREE.MeshBasicMaterial).opacity = .18 * (1 - t / 2.3) } })
-  for(const [id,guest] of guests){guest.userData.updateFace?.(time,blowing&&id===blowingParticipantId);guest.position.y=Math.sin(time*1.4)*.012;projected.copy(guest.position).add(labelOffset).project(camera);const label=guestLabels.get(id)!;label.style.left=`${(projected.x*.5+.5)*innerWidth}px`;label.style.top=`${(-projected.y*.5+.5)*innerHeight}px`;label.style.visibility=projected.z<1?'visible':'hidden'}
+  for(const [id,guest] of guests){guest.userData.updateFace?.(time,blowing&&id===blowingParticipantId);guest.position.y=Math.sin(time*1.4)*.012;projected.copy(guest.position).add(labelOffset.set(0,guest.userData.labelHeight||3,0)).project(camera);const label=guestLabels.get(id)!;label.style.left=`${(projected.x*.5+.5)*innerWidth}px`;label.style.top=`${(-projected.y*.5+.5)*innerHeight}px`;label.style.visibility=projected.z<1?'visible':'hidden'}
   vase.getWorldPosition(lampScreenPosition);lampScreenPosition.y+=1.03;lampScreenPosition.project(camera);lampSwitch.style.left=`${(lampScreenPosition.x*.5+.5)*innerWidth}px`;lampSwitch.style.top=`${(-lampScreenPosition.y*.5+.5)*innerHeight}px`;lampSwitch.style.visibility=lampScreenPosition.z<1?'visible':'hidden'
   renderer.render(scene, camera)
 }
