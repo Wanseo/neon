@@ -12,6 +12,7 @@ export function createRoomAvatarHead(parent: THREE.Group, hair: THREE.MeshStanda
   const smileMaterial = new THREE.MeshStandardMaterial({ color: '#7a4c32', roughness: .9 })
   const cheekMaterial = new THREE.MeshStandardMaterial({ color: '#f0ac80', roughness: 1 })
   const ribbonMaterial = new THREE.MeshStandardMaterial({ color: '#ed6aa8', roughness: .65 })
+  parent.userData.avatarMaterials=[skin,white,eyesMaterial,eyeShine,noseMaterial,smileMaterial,cheekMaterial,ribbonMaterial]
   function ellipsoid(group: THREE.Object3D, material: THREE.Material, position: number[], scale: number[]) {
     const object = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), material)
     object.position.set(position[0], position[1], position[2]); object.scale.set(scale[0], scale[1], scale[2]); group.add(object); return object
