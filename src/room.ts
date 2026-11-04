@@ -1,7 +1,8 @@
 import './room.css'
 import * as THREE from 'three'
 import { createRoomDaylight } from './room-daylight'
-import { createRoomAvatarHead } from './room-avatar'
+import { createRoomDaughterAvatar } from './room-daughter-avatar'
+import { rigExistingAvatar } from './room-avatar-rig'
 import { createRoomParentAvatar } from './room-parent-avatar'
 import { createRoomAnimalAvatar } from './room-animal-avatar'
 import { resolveRoomAvatar } from './room-avatar-style'
@@ -179,8 +180,6 @@ const guests = new Map<string, THREE.Group>()
 const guestSeats = new Map<string, THREE.Group>()
 const guestLabels=new Map<string,HTMLElement>()
 document.querySelector('.seat-label')!.remove()
-const skin = new THREE.MeshStandardMaterial({ color: '#f7c58d', roughness: .83 })
-const pinkShoes=new THREE.MeshStandardMaterial({color:'#d789a6',roughness:.8})
 function setGuests(people: Participant[]) {
   const ids=people.map(person=>person.id)
   people.forEach(({id,name}, index) => {
@@ -203,15 +202,10 @@ function setGuests(people: Participant[]) {
         if(appearance.role==='dad'||appearance.role==='mom'){
           guest.userData.updateFace=createRoomParentAvatar(guest,appearance.role,outfit,guestHair)
         }else{
-          mesh(guest,new THREE.CylinderGeometry(.22,.34,.62,32),outfit,0,1.2,0)
-          mesh(guest,new THREE.CylinderGeometry(.33,.37,.10,32),porcelain,0,.86,0)
-          for(let i=0;i<14;i++){const a=i/14*Math.PI*2;const scallop=sphere(guest,.047,porcelain,Math.cos(a)*.331,.842,Math.sin(a)*.331);scallop.scale.y=.65}
-          for(let i=0;i<12;i++){const a=i/12*Math.PI*2;sphere(guest,.035,porcelain,Math.cos(a)*.14,1.525,Math.sin(a)*.14)}
-          guest.userData.updateFace=createRoomAvatarHead(guest,guestHair,'daughter')
-          for(const x of [-.33,.33]){const arm=mesh(guest,new THREE.CapsuleGeometry(.095,.30,4,10),outfit,x,1.3,.19);arm.rotation.x=-.8;const cuff=mesh(guest,new THREE.CylinderGeometry(.103,.103,.07,12),porcelain,x,1.18,.36);cuff.rotation.x=-.8;sphere(guest,.105,skin,x,1.13,.41)}
-          for(const x of [-.16,.16]){const stocking=mesh(guest,new THREE.CapsuleGeometry(.073,.29,4,10),porcelain,x,.66,.22);stocking.scale.z=.9;const shoe=sphere(guest,.12,pinkShoes,x,.43,.3);shoe.scale.set(.8,.6,1.35)}
+          guest.userData.updateFace=createRoomDaughterAvatar(guest)
         }
       }
+      if(!guest.userData.avatarRig)rigExistingAvatar(guest)
       mesh(seat,new THREE.CylinderGeometry(.24,.24,.025,32),porcelain,0,1.5,1.28)
       mesh(seat,new THREE.CylinderGeometry(.085,.075,.18,20),porcelain,.37,1.59,1.22)
       movement.add(id,guest,seat,label)

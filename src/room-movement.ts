@@ -1,7 +1,8 @@
 import * as THREE from 'three'
+import type { AvatarRig } from './room-avatar-rig'
 import type { RoomMotion } from './room-presence'
 
-type Walker = { actor: THREE.Group; seat: THREE.Group; label: HTMLElement; target: THREE.Vector3; yaw: number; standing: boolean; moving: boolean; updated: number; seq: number; limbs: { object: THREE.Object3D; position: THREE.Vector3; rotation: THREE.Euler; side: number; leg: boolean }[] }
+type Walker = { actor: THREE.Group; seat: THREE.Group; label: HTMLElement; target: THREE.Vector3; yaw: number; standing: boolean; standBlend: number; gait: number; moving: boolean; updated: number; seq: number; rig: AvatarRig }
 export function createRoomMovement(selfId: string, send: (motion: RoomMotion) => void, cameraYaw: () => number) {
   const walkers = new Map<string, Walker>(), keys = new Set<string>()
   let stickX = 0, stickY = 0, lastFrame = 0, lastSent = 0, sequence = 0, wasMoving = false
@@ -55,12 +56,7 @@ export function createRoomMovement(selfId: string, send: (motion: RoomMotion) =>
   }
   return {
     add(id: string, actor: THREE.Group, seat: THREE.Group, label: HTMLElement) {
-      const limbs: Walker['limbs'] = []
-      for (const object of actor.children) {
-        const { x, y } = object.position
-        if ((y < .8 && Math.abs(x) > .07) || (Math.abs(x) > .27 && y > 1 && y < 1.5)) limbs.push({ object, position: object.position.clone(), rotation: object.rotation.clone(), side: x < 0 ? -1 : 1, leg: y < .8 })
-      }
-      walkers.set(id, { actor, seat, label, target: seat.position.clone(), yaw: seat.rotation.y, standing: false, moving: false, updated: 0, seq: -1, limbs }); refresh()
+      walkers.set(id, { actor, seat, label, target: seat.position.clone(), yaw: seat.rotation.y, standing: false, standBlend: 0, gait: 0, moving: false, updated: 0, seq: -1, rig: actor.userData.avatarRig }); refresh()
     },
     remove(id: string) { walkers.delete(id) },
     receive(id: string, motion: RoomMotion) {
@@ -91,9 +87,11 @@ export function createRoomMovement(selfId: string, send: (motion: RoomMotion) =>
         if (id !== selfId && now - w.updated > 450) w.moving = false
         w.actor.position.lerp(w.target, 1 - Math.exp(-dt * 16))
         const turn = Math.atan2(Math.sin(w.yaw - w.actor.rotation.y), Math.cos(w.yaw - w.actor.rotation.y)); w.actor.rotation.y += turn * (1 - Math.exp(-dt * 14))
-        const swing = w.standing && w.moving ? Math.sin(now * .013) : 0
-        w.actor.position.y = w.standing ? -.34 + Math.abs(swing) * .055 : Math.sin(now * .0014) * .012
-        for (const limb of w.limbs) { limb.object.position.copy(limb.position); limb.object.rotation.copy(limb.rotation); if (w.standing) { limb.object.position.z += swing * limb.side * (limb.leg ? .14 : -.1); limb.object.rotation.x += swing * limb.side * .15 } }
+        w.standBlend = THREE.MathUtils.damp(w.standBlend, w.standing ? 1 : 0, 12, dt)
+        w.gait = THREE.MathUtils.damp(w.gait, w.standing && w.moving ? 1 : 0, 15, dt)
+        const swing = Math.sin(now * .013) * w.gait
+        w.actor.position.y = Math.abs(swing) * .035
+        w.rig.pose(w.standBlend, swing)
         const label = w.label
         if (label) { label.dataset.posture = w.standing ? 'standing' : 'seated'; label.dataset.x = w.actor.position.x.toFixed(2); label.dataset.z = w.actor.position.z.toFixed(2) }
       }
