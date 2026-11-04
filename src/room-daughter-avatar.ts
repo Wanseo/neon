@@ -4,6 +4,7 @@ import { createAvatarRig } from './room-avatar-rig'
 
 // A fully modeled outfit: curved hat, braided hair, tailored plaid and a real backpack.
 export function createRoomDaughterAvatar(parent: THREE.Group) {
+  const owner = parent, model = new THREE.Group(); model.name = 'daughter-proportions'; owner.add(model); parent = model
   const owned: THREE.Material[] = [], textures: THREE.Texture[] = []
   const mat = (color: string, roughness = .85) => { const m = new THREE.MeshStandardMaterial({ color, roughness }); owned.push(m); return m }
   const skin = mat('#f4c6ab', .74), innerEar = mat('#e8a294'), hair = mat('#423027', .7), hat = mat('#bd762e'), hatEdge = mat('#9b5c27'), stitch = mat('#a4652c'), white = mat('#f5e8ce'), iris = mat('#825738', .55), pupil = mat('#302b24', .5), nose = mat('#d97e48'), mouth = mat('#83513a'), blush = mat('#eeb0a0'), leather = mat('#42312b', .62), sole = mat('#2e2523'), pants = mat('#825338'), backpack = mat('#c58232'), packEdge = mat('#a8692b'), brass = mat('#b99b4c', .45)
@@ -17,10 +18,11 @@ export function createRoomDaughterAvatar(parent: THREE.Group) {
     for (let p = 0; p < 256; p += 128) { ctx.fillStyle = '#302f2b'; ctx.fillRect(p, 0, 48, 256); ctx.fillRect(0, p, 256, 48); ctx.fillStyle = '#794e45'; ctx.fillRect(p + 80, 0, 5, 256); ctx.fillRect(0, p + 80, 256, 5); ctx.fillStyle = '#7c6b54'; ctx.fillRect(p + 106, 0, 2, 256); ctx.fillRect(0, p + 106, 256, 2) }
     ctx.globalAlpha = .12; ctx.fillStyle = '#e8d2ae'; for (let y = 0; y < 256; y += 3) ctx.fillRect(0, y, 256, 1)
   })
+  plaid.map!.wrapS = plaid.map!.wrapT = THREE.RepeatWrapping
   const knit = mat('#ffffff'); knit.map = canvasMap(ctx => { ctx.fillStyle = '#e6d7b7'; ctx.fillRect(0, 0, 256, 256); ctx.strokeStyle = '#c9bb9e'; ctx.lineWidth = 1; for (let x = 0; x < 256; x += 10) for (let y = 0; y < 256; y += 12) { ctx.beginPath(); ctx.moveTo(x - 3, y); ctx.lineTo(x, y + 6); ctx.lineTo(x + 3, y); ctx.stroke() } })
-  const cuff = mat('#ffffff'); cuff.map = canvasMap(ctx => { ctx.fillStyle = '#ce9b61'; ctx.fillRect(0, 0, 256, 256); for (let x = -16; x < 280; x += 64) for (let y = -16; y < 280; y += 64) { ctx.save(); ctx.translate(x, y); ctx.rotate(Math.PI / 4); ctx.fillStyle = ((x + y) / 64) % 2 ? '#693d2d' : '#ece0b7'; ctx.fillRect(-19, -19, 38, 38); ctx.restore() } })
-  const head = new THREE.Group(); head.position.y = 2.03; parent.add(head)
-  ball(head, hair, 0, .04, -.08, .53, .47, .40)
+  const cuff = mat('#ffffff'); cuff.map = canvasMap(ctx => { ctx.fillStyle = '#ce9b61'; ctx.fillRect(0, 0, 256, 256); for (let x = -32; x < 280; x += 64) for (let y = -32; y < 280; y += 64) { ctx.save(); ctx.translate(x, y); ctx.rotate(Math.PI / 4); ctx.fillStyle = ((x + y) / 64) % 2 ? '#693d2d' : '#ece0b7'; ctx.fillRect(-19, -19, 38, 38); ctx.restore() } })
+  const head = new THREE.Group(); head.position.y = 1.79; head.scale.set(1.12, .90, 1); parent.add(head)
+  ball(head, hair, 0, .04, -.08, .53, .42, .40)
   const face = round(head, skin, 0, -.035, .035, 1.03, .87, .76, .33)
   // Gentle cheek shading follows the curved face instead of a flat face sticker.
   const faceMaterial = skin.clone(); faceMaterial.vertexColors = true; owned.push(faceMaterial); face.material = faceMaterial
@@ -29,12 +31,12 @@ export function createRoomDaughterAvatar(parent: THREE.Group) {
   face.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
   for (const side of [-1, 1]) { ball(head, skin, side * .53, -.08, 0, .10, .14, .075); ball(head, innerEar, side * .568, -.08, .035, .04, .075, .025) }
   // Short straight bangs tucked under the brim, with actual depth at the temples.
-  round(head, hair, 0, .275, .327, .72, .19, .13, .045)
+  round(head, hair, 0, .235, .327, .72, .17, .13, .045)
   for (const side of [-1, 1]) ball(head, hair, side * .444, .15, .09, .07, .25, .15)
   const eyes: THREE.Group[] = []
   for (const side of [-1, 1]) {
     const eye = new THREE.Group(); eye.position.set(side * .215, .015, .429); head.add(eye); eyes.push(eye)
-    ball(eye, white, 0, 0, 0, .115, .145, .035); ball(eye, iris, .014, -.004, .025, .078, .125, .025); ball(eye, pupil, .021, -.005, .046, .027, .055, .012); ball(eye, white, -.010, .061, .051, .015, .023, .008)
+    ball(eye, white, 0, 0, 0, .125, .135, .035); ball(eye, iris, .014, -.004, .025, .084, .115, .025); ball(eye, pupil, .021, -.005, .046, .027, .055, .012); ball(eye, white, -.010, .061, .051, .015, .023, .008)
     line(eye, mouth, [[-.109, .025, .015], [-.08, .12, .02], [0, .148, .022], [.08, .103, .02]], .007)
     for (let j = 0; j < 2; j++) line(eye, mouth, [[side * .085, .085 - j * .04, .018], [side * .118, .105 - j * .04, .015]], .005)
   }
@@ -49,11 +51,12 @@ export function createRoomDaughterAvatar(parent: THREE.Group) {
     const end = add(braid, new THREE.ConeGeometry(.085, .19, 18), hair, side * .105, -.52, 0); end.rotation.z = side * .65 + Math.PI
   }
   // A wavy, thick brim and rounded crown, with curved fabric panel seams.
-  const hatGroup = new THREE.Group(); hatGroup.position.set(0, .43, -.025); head.add(hatGroup)
+  const hatGroup = new THREE.Group(); hatGroup.position.set(0, .39, -.025); head.add(hatGroup)
   const crownProfile = new THREE.CatmullRomCurve3([new THREE.Vector3(.51, -.047, 0), new THREE.Vector3(.50, .08, 0), new THREE.Vector3(.45, .28, 0), new THREE.Vector3(.32, .46, 0), new THREE.Vector3(.12, .535, 0), new THREE.Vector3(.001, .54, 0)])
+  for (const p of crownProfile.points) p.y = (p.y + .047) * .62 - .047
   const points = crownProfile.getPoints(40).map(p => new THREE.Vector2(p.x, p.y))
   const crown = add(hatGroup, new THREE.LatheGeometry(points, 64), hat); crown.scale.z = .84
-  const segments = 64, rings = 8, vertices: number[] = [], indices: number[] = [], brimPoint = (r: number, a: number) => new THREE.Vector3(Math.cos(a) * r, -.045 - (r - .5) * .34 + Math.cos(a * 3 + .4) * .045 * (r - .5) / .26, Math.sin(a) * r * .84)
+  const segments = 64, rings = 8, vertices: number[] = [], indices: number[] = [], brimPoint = (r: number, a: number) => new THREE.Vector3(Math.cos(a) * r, -.045 - (r - .5) * .12 + (Math.cos(a * 2) * .060 + Math.sin(a * 3 + .4) * .016) * (r - .5) / .27, Math.sin(a) * r * .84)
   for (let ring = 0; ring <= rings; ring++) for (let j = 0; j <= segments; j++) { const v = brimPoint(.50 + ring / rings * .27, j / segments * Math.PI * 2); vertices.push(v.x, v.y, v.z) }
   for (let ring = 0; ring < rings; ring++) for (let j = 0; j < segments; j++) { const a = ring * (segments + 1) + j, b = a + segments + 1; indices.push(a, b, a + 1, a + 1, b, b + 1) }
   const brimGeometry = new THREE.BufferGeometry(); brimGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); brimGeometry.setIndex(indices); brimGeometry.computeVertexNormals()
@@ -61,39 +64,45 @@ export function createRoomDaughterAvatar(parent: THREE.Group) {
   const outer: number[][] = []; for (let j = 0; j <= 64; j++) { const v = brimPoint(.77, j / 64 * Math.PI * 2); outer.push([v.x, v.y, v.z]) } line(hatGroup, hatEdge, outer, .016)
   for (let j = 0; j < 6; j++) { const a = j / 6 * Math.PI * 2; const seam = crownProfile.getPoints(30).slice(0, -3).map(p => [Math.cos(a) * (p.x + .002), p.y + .001, Math.sin(a) * (p.x + .002) * .84]); line(hatGroup, stitch, seam, .003) }
 
-  const rig = createAvatarRig(parent)
-  add(parent, new THREE.CylinderGeometry(.095, .105, .20, 20), skin, 0, 1.59)
-  round(parent, knit, 0, 1.21, .015, .46, .66, .31, .075)
+  const rig = createAvatarRig(parent, { hipHeight: .68, thighLength: .27, shoulderWidth: .22, shoulderHeight: 1.27, upperArmLength: .22, armSpread: .38 })
+  const pose = rig.pose
+  rig.pose = (stand, stride) => { pose(stand, stride); model.position.y = .24 * (1 - stand) }
+  add(parent, new THREE.CylinderGeometry(.095, .105, .20, 20), skin, 0, 1.36)
+  round(parent, knit, 0, 1.00, .015, .43, .59, .31, .075)
   // Open coat panels are separate rounded volumes, not a painted body texture.
   for (const side of [-1, 1]) {
-    const panel = round(parent, plaid, side * .19, 1.18, .025, .23, .73, .40, .055); panel.rotation.z = -side * .045
-    const lapel = round(parent, plaid, side * .122, 1.425, .245, .115, .30, .035, .012); lapel.rotation.z = side * -.25
-    for (let j = 0; j < 2; j++) ball(parent, leather, side * .135, 1.19 - j * .17, .236, .019, .023, .009)
-    round(parent, plaid, side * .225, 1.05, .235, .11, .065, .025, .012)
+    // A narrow, rounded neckline flows straight into the sloping sleeve cap.
+    const shape = new THREE.Shape(); shape.moveTo(side * .075, .69); shape.lineTo(side * .31, .70); shape.quadraticCurveTo(side * .31, 1.08, side * .265, 1.22); shape.quadraticCurveTo(side * .235, 1.32, side * .16, 1.32); shape.lineTo(side * .08, 1.25); shape.closePath()
+    const panel = add(parent, new THREE.ExtrudeGeometry(shape, { depth: .32, bevelEnabled: true, bevelSize: .025, bevelThickness: .025, bevelSegments: 3, curveSegments: 18, steps: 1 }), plaid, 0, 0, -.16)
+    // Extrusion UVs are in model units; keep plaid cells the same size as sleeves.
+    const uv = panel.geometry.attributes.uv; for (let j = 0; j < uv.count; j++) uv.setXY(j, uv.getX(j) * 2.4, uv.getY(j) * 2.4)
+    const lapel = round(parent, plaid, side * .115, 1.20, .211, .102, .24, .035, .012); lapel.rotation.z = side * -.25
+    for (let j = 0; j < 2; j++) ball(parent, leather, side * .135, .99 - j * .15, .205, .019, .023, .009)
+    round(parent, plaid, side * .225, .86, .205, .11, .06, .025, .012)
   }
-  round(parent, plaid, 0, 1.17, -.16, .56, .70, .10, .04)
-  const bag = new THREE.Group(); bag.position.set(0, 1.25, -.32); parent.add(bag)
+  round(parent, plaid, 0, .99, -.16, .52, .59, .10, .055)
+  const bag = new THREE.Group(); bag.position.set(0, 1.055, -.32); bag.scale.set(1, .93, 1); parent.add(bag)
   round(bag, backpack, 0, -.015, -.075, .49, .56, .22, .095); round(bag, packEdge, 0, .18, -.21, .42, .21, .075, .055); round(bag, backpack, 0, .205, -.235, .39, .16, .05, .045)
   round(bag, packEdge, 0, -.18, -.208, .30, .16, .10, .04); round(bag, backpack, 0, -.16, -.263, .28, .10, .025, .02)
   round(bag, leather, 0, .065, -.27, .047, .20, .018, .008)
   const buckle = add(bag, new THREE.TorusGeometry(.035, .008, 6, 4), brass, 0, .025, -.287); buckle.rotation.z = Math.PI / 4
   line(bag, packEdge, [[-.075, .25, 0], [-.06, .33, 0], [.06, .33, 0], [.075, .25, 0]], .025)
   for (const side of [-1, 1]) {
-    line(parent, backpack, [[side * .19, 1.50, -.30], [side * .265, 1.53, -.06], [side * .255, 1.38, .24], [side * .25, 1.08, .20], [side * .23, 1.05, -.23]], .026)
+    line(parent, backpack, [[side * .16, 1.29, -.30], [side * .205, 1.32, -.06], [side * .205, 1.18, .21], [side * .22, .88, .20], [side * .21, .86, -.23]], .026)
     round(bag, backpack, side * .265, -.05, -.04, .07, .23, .13, .03)
   }
   for (let i = 0; i < 2; i++) {
-    const thigh = add(rig.hips[i], new THREE.CapsuleGeometry(.095, .22, 6, 18), pants, 0, -.20); thigh.scale.z = .92
-    ball(rig.knees[i], pants, 0, 0, 0, .092)
-    add(rig.knees[i], new THREE.CapsuleGeometry(.09, .21, 6, 18), pants, 0, -.18)
-    add(rig.knees[i], new THREE.CylinderGeometry(.103, .103, .105, 24), cuff, 0, -.32)
-    round(rig.knees[i], leather, 0, -.415, .045, .21, .16, .30, .055); round(rig.knees[i], sole, 0, -.485, .045, .215, .035, .31, .012)
-    line(rig.knees[i], packEdge, [[-.065, -.36, .10], [0, -.35, .15], [.065, -.36, .10]], .009)
-    add(rig.shoulders[i], new THREE.CapsuleGeometry(.104, .12, 5, 18), plaid, 0, -.13)
-    add(rig.elbows[i], new THREE.CapsuleGeometry(.093, .12, 5, 18), plaid, 0, -.115)
-    add(rig.elbows[i], new THREE.CylinderGeometry(.101, .101, .05, 20), pants, 0, -.23)
-    ball(rig.elbows[i], skin, 0, -.31, .01, .105, .108, .102)
+    const thigh = add(rig.hips[i], new THREE.CylinderGeometry(.102, .098, .28, 24), pants, 0, -.135); thigh.scale.z = .92
+    ball(rig.knees[i], pants, 0, 0, 0, .094)
+    add(rig.knees[i], new THREE.CylinderGeometry(.099, .102, .255, 24), pants, 0, -.12)
+    add(rig.knees[i], new THREE.CylinderGeometry(.106, .106, .09, 24), cuff, 0, -.235)
+    round(rig.knees[i], leather, 0, -.30, .045, .21, .14, .30, .05); round(rig.knees[i], sole, 0, -.3675, .045, .215, .03, .31, .012)
+    line(rig.knees[i], packEdge, [[-.065, -.25, .10], [0, -.24, .15], [.065, -.25, .10]], .009)
+    add(rig.shoulders[i], new THREE.CapsuleGeometry(.102, .10, 6, 20), plaid, 0, -.11)
+    add(rig.elbows[i], new THREE.CapsuleGeometry(.092, .10, 6, 20), plaid, 0, -.10)
+    add(rig.elbows[i], new THREE.CylinderGeometry(.10, .10, .045, 20), pants, 0, -.205)
+    ball(rig.elbows[i], skin, 0, -.265, .01, .105, .108, .102)
   }
-  parent.userData.avatarMaterials = owned; parent.userData.avatarTextures = textures; parent.userData.labelHeight = 3.22
+  owner.userData.avatarRig = rig; owner.userData.avatarMaterials = owned; owner.userData.avatarTextures = textures; owner.userData.labelHeight = 2.90
   return (time: number, blowing: boolean) => { const blink = Math.sin(time * .83) > .996; eyes.forEach(e => e.scale.y = blink ? .1 : 1); smile.scale.x = blowing ? .5 : 1; head.rotation.x = blowing ? .10 : -.015; for (let i = 0; i < 2; i++) braids[i].rotation.z = Math.sin(time * 1.5 + i) * .025 }
 }

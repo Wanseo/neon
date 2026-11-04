@@ -1,12 +1,14 @@
 import * as THREE from 'three'
 
 export type AvatarRig = { hips: THREE.Group[]; knees: THREE.Group[]; shoulders: THREE.Group[]; elbows: THREE.Group[]; pose: (stand: number, stride: number) => void }
-export function createAvatarRig(parent: THREE.Group): AvatarRig {
+type RigProportions = { hipHeight?: number; thighLength?: number; shoulderWidth?: number; shoulderHeight?: number; upperArmLength?: number; armSpread?: number }
+export function createAvatarRig(parent: THREE.Group, proportions: RigProportions = {}): AvatarRig {
+  const { hipHeight = .92, thighLength = .40, shoulderWidth = .32, shoulderHeight = 1.46, upperArmLength = .26, armSpread = .10 } = proportions
   const hips: THREE.Group[] = [], knees: THREE.Group[] = [], shoulders: THREE.Group[] = [], elbows: THREE.Group[] = []
   for (const side of [-1, 1]) {
     const joint = (name: string, target: THREE.Object3D, x: number, y: number, z = 0) => { const g = new THREE.Group(); g.name = `${name}-${side < 0 ? 'L' : 'R'}`; g.position.set(x, y, z); target.add(g); return g }
-    const hip = joint('hip', parent, side * .155, .92), knee = joint('knee', hip, 0, -.40)
-    const shoulder = joint('shoulder', parent, side * .32, 1.46), elbow = joint('elbow', shoulder, 0, -.26)
+    const hip = joint('hip', parent, side * .155, hipHeight), knee = joint('knee', hip, 0, -thighLength)
+    const shoulder = joint('shoulder', parent, side * shoulderWidth, shoulderHeight), elbow = joint('elbow', shoulder, 0, -upperArmLength)
     hips.push(hip); knees.push(knee); shoulders.push(shoulder); elbows.push(elbow)
   }
   const rig: AvatarRig = { hips, knees, shoulders, elbows, pose(stand, stride) {
@@ -15,7 +17,7 @@ export function createAvatarRig(parent: THREE.Group): AvatarRig {
       hips[i].rotation.x = -Math.PI / 2 * seated + step * .48 * stand
       knees[i].rotation.x = Math.PI / 2 * seated + Math.max(0, -step) * .65 * stand
       shoulders[i].rotation.x = -.82 * seated - step * .40 * stand
-      shoulders[i].rotation.z = (i === 0 ? -.10 : .10) * stand
+      shoulders[i].rotation.z = (i === 0 ? -armSpread : armSpread) * stand
       elbows[i].rotation.x = -.45 * seated - .10 * stand - Math.max(0, step) * .12 * stand
     }
   } }
