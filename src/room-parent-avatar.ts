@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
+import { plushGeometry } from './room-avatar-soft'
 
 // Original parent avatars inspired by warm proportions, round frames and everyday clothing.
 export function createRoomParentAvatar(parent: THREE.Group, role: 'dad' | 'mom', outfit: THREE.MeshStandardMaterial, hair: THREE.MeshStandardMaterial) {
@@ -30,7 +30,7 @@ export function createRoomParentAvatar(parent: THREE.Group, role: 'dad' | 'mom',
     const back = ball(head, hair, 0, -.045, -.13, .46, .56, .31); back.castShadow = true
     for (const side of [-1, 1]) { const lock = ball(head, hair, side * .37, -.13, -.03, .105, .43, .19); lock.rotation.z = -side * .08; lock.castShadow = true }
   }
-  const faceGeometry=new RoundedBoxGeometry(role==='dad'?.88:.84,.75,.65,5,.21)
+  const faceGeometry=plushGeometry(role==='dad'?.88:.84,.75,.65,.90)
   let faceMaterial=skin
   if(role==='dad'){
     faceMaterial=skin.clone();faceMaterial.vertexColors=true;parent.userData.avatarMaterials.push(faceMaterial)
@@ -57,7 +57,7 @@ export function createRoomParentAvatar(parent: THREE.Group, role: 'dad' | 'mom',
   }
   const eyes: THREE.Group[] = []
   for (const side of [-1, 1]) {
-    const eye = new THREE.Group(); eye.position.set(side * .195, .025, .345); head.add(eye); eyes.push(eye)
+    const eye = new THREE.Group(); eye.position.set(side * .195, .025, .323); head.add(eye); eyes.push(eye)
     ball(eye, cream, 0, 0, 0, .108, .125, .012)
     ball(eye, iris, side * .014, .002, .013, .057, .098, .009)
     ball(eye, cream, -.014, .048, .022, .010, .017, .003)
